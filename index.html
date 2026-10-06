@@ -1,0 +1,1694 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tubtubon eHealth</title>
+  <link rel="icon" type="image/png" href="image/logo.png">
+  <link rel="apple-touch-icon" href="image/logo.png">
+  <meta name="theme-color" content="#0B3B22">
+
+  <!-- Bootstrap 5.3 -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <!-- Lucide icons -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+  <!-- Local styles -->
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════
+     LOGIN PAGE
+═══════════════════════════════════════════════════ -->
+<div id="login-page">
+  <div class="login-split">
+    <!-- LEFT : form -->
+    <div class="login-left">
+      <div class="login-box">
+        <h1 class="login-h1">Sign in</h1>
+        <p class="login-sub">Use your staff account to access the health center system.</p>
+
+        <div class="login-error d-none" id="login-error">
+          <i data-lucide="triangle-alert"></i><span></span>
+        </div>
+
+        <form id="login-form" novalidate>
+          <div class="mb-3">
+            <label for="login-username" class="form-label">Username / Staff Name</label>
+            <input type="text" id="login-username" class="form-control input-lg" placeholder="e.g. Nurse Reyes" autocomplete="off" autofocus>
+          </div>
+          <div class="mb-3">
+            <label for="login-password" class="form-label">Password</label>
+            <input type="password" id="login-password" class="form-control input-lg" placeholder="Enter any password" autocomplete="off">
+            <div class="form-text">Any password works — demo only, not checked.</div>
+          </div>
+          <div class="mb-4">
+            <label for="login-role" class="form-label">Select Role <span class="text-danger">*</span></label>
+            <select id="login-role" class="form-select input-lg" required>
+              <option value="">-- Choose Role --</option>
+              <option value="Administrator">Administrator</option>
+              <option value="Nurse/Midwife">Nurse/Midwife</option>
+              <option value="Barangay Health Worker">Barangay Health Worker</option>
+              <option value="Inventory/Admin Personnel">Inventory/Admin Personnel</option>
+              <option value="Resident">Resident (Own Data Only)</option>
+            </select>
+            <div class="form-text">Demo only: this role picker is for showing different user privileges and will be removed in the final product.</div>
+          </div>
+          <button type="submit" class="btn-login">
+            <i data-lucide="log-in" class="me-1"></i>Sign In
+          </button>
+        </form>
+
+        <details class="demo-details">
+          <summary><i data-lucide="key-round" class="me-1"></i>Demo roles (tap to fill)</summary>
+          <div class="demo-body"><div>
+          <table>
+            <tr data-role="Administrator"><td>Administrator</td><td>Full access + users, backup</td></tr>
+            <tr data-role="Nurse/Midwife"><td>Nurse / Midwife</td><td>Records, verify, schedules</td></tr>
+            <tr data-role="Barangay Health Worker"><td>BHW</td><td>Register, encode, schedule</td></tr>
+            <tr data-role="Inventory/Admin Personnel"><td>Inventory</td><td>Stock, reports</td></tr>
+            <tr data-role="Resident"><td>Resident</td><td>Own data only</td></tr>
+          </table>
+          </div></div>
+        </details>
+
+        <p class="login-footnote">Not paperless — but searchable &amp; traceable.</p>
+      </div>
+    </div>
+
+    <!-- RIGHT : brand panel -->
+    <div class="login-right d-none d-lg-flex">
+      <div>
+        <div class="panel-brand">
+          <div class="brand-tile"><img src="image/logo.png" alt="Tubtubon eHealth logo"></div>
+          <div class="brand-text">
+            <span class="brand-name">Tubtubon eHealth</span>
+            <span class="brand-sub" style="color:rgba(255,255,255,.55)">BARANGAY TUBTUBON HEALTH CENTER</span>
+          </div>
+        </div>
+
+        <h2 class="panel-hero">Every patient record.<br>One organized system.</h2>
+        <p class="panel-copy">Tubtubon eHealth is the health information and service system of Barangay Tubtubon Health Center, Negros Oriental — one organized place for patient records, services, documents, supplies, and schedules, built to work alongside the paper workflows the clinic relies on every day.</p>
+      </div>
+
+      <svg class="ecg-wrap ecg-line" viewBox="0 0 1200 90" fill="none" preserveAspectRatio="none" height="90">
+        <polyline points="0,45 140,45 170,45 185,20 200,70 215,10 230,80 245,38 260,45 420,45 450,45 465,25 480,65 495,15 510,75 525,40 540,45 720,45 750,45 765,22 780,68 795,12 810,78 825,36 840,45 1030,45 1060,45 1075,26 1090,62 1105,18 1120,72 1135,42 1150,45 1200,45" stroke="#ffffff" stroke-opacity=".85" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     APP SHELL
+═══════════════════════════════════════════════════ -->
+<div id="app-shell" class="app-shell" style="display:none">
+
+  <!-- Desktop sidebar -->
+  <aside class="app-sidebar d-none d-lg-flex">
+    <div class="sidebar-inner">
+      <div class="brand-row">
+        <div class="brand-tile"><img src="image/logo.png" alt="Tubtubon eHealth logo"></div>
+        <div class="brand-text">
+          <span class="brand-name">Tubtubon eHealth</span>
+          <span class="brand-sub">Tubtubon Health Center</span>
+        </div>
+      </div>
+      <div class="side-scroll" id="sidebar-nav"></div>
+      <div class="logout-wrap">
+        <button type="button" class="side-link logout-btn" onclick="doLogout()">
+          <i data-lucide="log-out"></i><span>Logout</span>
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Mobile sidebar -->
+  <div class="offcanvas offcanvas-start bg-dark" tabindex="-1" id="mobileSidebar" style="width:252px;background:#17181c!important">
+    <div class="offcanvas-body p-0">
+      <div class="sidebar-inner">
+        <div class="brand-row">
+          <div class="brand-tile"><img src="image/logo.png" alt="Tubtubon eHealth logo"></div>
+          <div class="brand-text">
+            <span class="brand-name">Tubtubon eHealth</span>
+            <span class="brand-sub">Tubtubon Health Center</span>
+          </div>
+        </div>
+        <div class="side-scroll" id="mobileSidebarNav"></div>
+        <div class="logout-wrap">
+          <button type="button" class="side-link logout-btn" onclick="doLogout()">
+            <i data-lucide="log-out"></i><span>Logout</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="app-main">
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+      <div class="d-flex align-items-center gap-2">
+        <button class="btn btn-light-ghost burger-btn d-none d-lg-inline-flex" type="button" id="sidebarCollapseBtn" aria-label="Collapse sidebar" title="Collapse / expand sidebar">
+          <i data-lucide="menu"></i>
+        </button>
+        <button class="btn btn-light-ghost d-lg-none burger-btn" type="button" data-bs-toggle="offcanvas" data-bs-target="#mobileSidebar" aria-label="Menu">
+          <i data-lucide="menu"></i>
+        </button>
+        <div>
+          <h1 class="page-title" id="pageTitle">Dashboard</h1>
+          <p class="page-subtitle" id="pageSubtitle"></p>
+        </div>
+      </div>
+
+      <div class="topbar-right">
+        <div class="search-pill d-none d-md-flex">
+          <i data-lucide="search"></i>
+          <input type="search" id="topbar-search" placeholder="Search patients…" aria-label="Search patients" autocomplete="off">
+        </div>
+
+        <button class="icon-btn position-relative" id="bellBtn" title="Today's appointments" aria-label="Notifications" onclick="navigateTo('scheduling')">
+          <i data-lucide="bell"></i>
+          <span class="bell-badge d-none" id="bellBadge">0</span>
+        </button>
+
+        <div class="dropdown">
+          <button class="user-chip" type="button" data-bs-toggle="dropdown" aria-expanded="false" id="userChipBtn">
+            <span id="topbar-user-badge" class="d-flex align-items-center gap-2"></span>
+            <i data-lucide="chevron-down" class="caret"></i>
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end user-menu" id="roleMenu"></ul>
+        </div>
+      </div>
+    </header>
+
+    <!-- MAIN CONTENT -->
+    <main class="content" id="main-content">
+
+    <!-- ── Access Denied ── -->
+    <div class="page-section" id="page-access-denied">
+      <div class="access-denied-box">
+        <div class="deny-icon"><i data-lucide="shield-alert"></i></div>
+        <h2 class="fw-700 text-danger">Access Denied</h2>
+        <p class="text-muted" style="max-width:400px;margin:0 auto;">Your current role does not have permission to view this page. Please switch to an authorized role.</p>
+        <div class="mt-3">
+          <button class="btn btn-primary" onclick="navigateTo(window.ROLES[AppState.currentRole]?.menu[0] || 'dashboard')">
+            <i data-lucide="house" class="me-1"></i> Go to Home
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════
+         S1 — DASHBOARD
+    ══════════════════════════════════════ -->
+    <div class="page-section" id="page-dashboard">
+      <!-- KPI CARDS -->
+      <div class="row g-3 mb-4">
+        <div class="col-sm-6 col-xl-3">
+          <a class="stat-card tint-pine d-block" onclick="navigateTo('patients')" style="cursor:pointer">
+            <div class="stat-label">Registered Patients</div>
+            <div class="stat-value" id="dash-stat-patients">—</div>
+            <div class="stat-foot"><span class="stat-hint">Master index by UPI</span></div>
+          </a>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+          <a class="stat-card tint-blue d-block" onclick="navigateTo('service-entry')" style="cursor:pointer">
+            <div class="stat-label">Service Records</div>
+            <div class="stat-value" id="dash-stat-records">—</div>
+            <div class="stat-foot"><span class="stat-hint">Across 6 programs</span></div>
+          </a>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+          <a class="stat-card tint-mint d-block" onclick="navigateTo('scheduling')" style="cursor:pointer">
+            <div class="stat-label">Today's Appointments</div>
+            <div class="stat-value" id="dash-stat-apts">—</div>
+            <div class="stat-foot"><span class="stat-hint" id="dash-date-display">—</span></div>
+          </a>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+          <a class="stat-card tint-peach d-block" onclick="navigateTo('inventory')" style="cursor:pointer">
+            <div class="stat-label">Low Stock Items</div>
+            <div class="stat-value" id="dash-stat-lowstock">—</div>
+            <div class="stat-foot">
+              <span id="dash-lowstock-chip"><span class="chip-allgood">all good</span></span>
+              <span class="stat-hint">at or below threshold</span>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-7">
+          <div class="card h-100">
+            <div class="card-body">
+              <h6 class="fw-700 text-green mb-3"><i data-lucide="chart-column" class="me-1"></i>Service Records by Program</h6>
+              <div class="chart-container" style="height:240px;">
+                <canvas id="chart-visits"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-5">
+          <div class="card h-100">
+            <div class="card-body">
+              <h6 class="fw-700 text-green mb-3"><i data-lucide="chart-pie" class="me-1"></i>Appointments by Status</h6>
+              <div class="chart-container" style="height:240px;">
+                <canvas id="chart-apts"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-body">
+              <h6 class="fw-700 text-green mb-3"><i data-lucide="boxes" class="me-1"></i>Stock Levels vs. Minimum Threshold</h6>
+              <div class="chart-container" style="height:220px;">
+                <canvas id="chart-stock"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="card">
+        <div class="card-header-green"><i data-lucide="history" class="me-2"></i>Recent Activity (Audit Trail)</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+              <thead>
+                <tr><th>Time</th><th>Actor</th><th>Action</th><th>Description</th></tr>
+              </thead>
+              <tbody id="dash-recent-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div><!-- /dashboard -->
+
+    <!-- ══════════════════════════════════════
+         S2 — PATIENT REGISTRY
+    ══════════════════════════════════════ -->
+    <div class="page-section" id="page-patients">
+      <div class="page-header">
+        <h1 class="page-title"><i data-lucide="users"></i> Patient Registry</h1>
+        <button class="btn btn-primary no-print" id="btn-add-patient" data-bs-toggle="modal" data-bs-target="#modal-add-patient">
+          <i data-lucide="user-plus" class="me-1"></i> Add Patient
+        </button>
+      </div>
+
+      <!-- Search -->
+      <div class="card mb-3">
+        <div class="card-body py-2">
+          <div class="search-box-wrap">
+            <i data-lucide="search"></i>
+            <input type="text" id="patient-search" class="form-control" placeholder="Search by name, UPI, or purok — live results...">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header-green"><i data-lucide="table" class="me-2"></i>Patient List</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>UPI</th><th>Name</th><th>Sex</th><th>Birthdate</th>
+                  <th>Purok</th><th>Contact</th><th>Consent</th>
+                </tr>
+              </thead>
+              <tbody id="patient-tbody">
+                <tr><td colspan="7" class="text-center text-muted py-4">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div><!-- /patients -->
+
+    <!-- ══════════════════════════════════════
+         S3 — SERVICE RECORD ENTRY
+    ══════════════════════════════════════ -->
+    <div class="page-section" id="page-service-entry">
+      <div class="page-header">
+        <h1 class="page-title"><i data-lucide="clipboard-plus"></i> Service Record Entry</h1>
+      </div>
+
+      <div class="row g-3">
+        <!-- Form -->
+        <div class="col-12 col-lg-5">
+          <div class="card h-100">
+            <div class="card-header-green"><i data-lucide="square-pen" class="me-2"></i>New Service Record</div>
+            <div class="card-body">
+              <form id="sr-form" novalidate>
+                <div class="mb-3">
+                  <label class="form-label">Patient <span class="text-danger">*</span></label>
+                  <select id="sr-patient-select" class="form-select" required>
+                    <option value="">-- Select Patient --</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Program Type <span class="text-danger">*</span></label>
+                  <select id="sr-program-type" class="form-select" required>
+                    <option value="">-- Select Program --</option>
+                    <option>Family Planning</option>
+                    <option>Maternal/Prenatal</option>
+                    <option>Child Health-ECCD</option>
+                    <option>Immunization</option>
+                    <option>Laboratory Referral</option>
+                    <option>General Consultation</option>
+                  </select>
+                </div>
+                <div class="row g-2 mb-3">
+                  <div class="col-6">
+                    <label class="form-label">Service Date <span class="text-danger">*</span></label>
+                    <input type="date" id="sr-service-date" class="form-control" required>
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label">Form Ref No. <span class="text-danger">*</span></label>
+                    <input type="text" id="sr-form-ref" class="form-control" placeholder="e.g. MAT-2026-001" required>
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Findings / Notes <span class="text-danger">*</span></label>
+                  <textarea id="sr-findings" class="form-control" rows="3" placeholder="Enter clinical notes, findings, or service details..." required></textarea>
+                </div>
+                <div class="row g-2 mb-3">
+                  <div class="col-6">
+                    <label class="form-label">Recorded By <span class="text-danger">*</span></label>
+                    <input type="text" id="sr-recorded-by" class="form-control" placeholder="Staff name" required>
+                  </div>
+                  <div class="col-6">
+                    <label class="form-label">Verified By</label>
+                    <input type="text" id="sr-verified-by" class="form-control" placeholder="Supervisor">
+                  </div>
+                </div>
+                <div class="alert alert-warning py-2 mb-3" style="font-size:0.85rem;">
+                  <i data-lucide="info" class="me-1"></i> All records include a digital log for traceability. Original paper forms must still be filed in cabinet.
+                </div>
+                <button type="button" class="btn btn-primary btn-lg w-100" id="btn-save-sr" onclick="saveServiceRecord()">
+                  <i data-lucide="save" class="me-2"></i>Save Service Record
+                </button>
+                <div class="alert alert-light border mt-2 d-none" id="sr-readonly-note" style="font-size:.82rem">View-only for your role. Record creation is performed by clinical staff.</div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Records -->
+        <div class="col-12 col-lg-7">
+          <div class="card">
+            <div class="card-header-green"><i data-lucide="list" class="me-2"></i>Recent Service Records</div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                  <thead>
+                    <tr><th>Patient</th><th>Program</th><th>Date</th><th>Ref No.</th><th>Notes</th><th>By</th></tr>
+                  </thead>
+                  <tbody id="sr-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /service-entry -->
+
+    <!-- ══════════════════════════════════════
+         S4 — DOCUMENT REGISTRY
+    ══════════════════════════════════════ -->
+    <div class="page-section" id="page-documents">
+      <div class="page-header">
+        <h1 class="page-title"><i data-lucide="folder-open"></i> Document Registry</h1>
+        <button class="btn btn-primary no-print" id="btn-add-doc" data-bs-toggle="modal" data-bs-target="#modal-add-doc">
+          <i data-lucide="file-plus-2" class="me-1"></i> Add Document
+        </button>
+      </div>
+
+      <!-- Filter -->
+      <div class="card mb-3">
+        <div class="card-body py-2 d-flex align-items-center gap-3 flex-wrap">
+          <label class="form-label mb-0 fw-700">Filter by Status:</label>
+          <select id="doc-filter-status" class="form-select w-auto" onchange="filterDocs()">
+            <option value="all">All Statuses</option>
+            <option>Filed</option>
+            <option>Pending Digitization</option>
+            <option>Scanned/Attached</option>
+            <option>Unavailable/Archived</option>
+          </select>
+          <div class="ms-auto d-flex gap-2 flex-wrap">
+            <span class="badge badge-status-filed px-2 py-1">Filed</span>
+            <span class="badge badge-status-pending px-2 py-1">Pending Digitization</span>
+            <span class="badge badge-status-scanned px-2 py-1">Scanned/Attached</span>
+            <span class="badge badge-status-unavailable px-2 py-1">Unavailable/Archived</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover mb-0">
+              <thead>
+                <tr>
+                  <th>Document</th><th>Patient</th><th>Status</th>
+                  <th>Location</th><th>Digital File</th><th>Last Updated</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="doc-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div><!-- /documents -->
+
+    <!-- ══════════════════════════════════════
+         S5 — PRINTABLE TEMPLATES
+    ══════════════════════════════════════ -->
+    <div class="page-section" id="page-templates">
+      <div class="page-header">
+        <h1 class="page-title"><i data-lucide="printer"></i> Printable Blank Templates</h1>
+        <button class="btn btn-primary no-print" id="btn-print-template" onclick="printTemplate()">
+          <i data-lucide="printer" class="me-1"></i> Print This Template
+        </button>
+      </div>
+
+      <div class="mb-3 no-print template-tabs">
+        <button class="btn btn-primary btn-sm template-tab me-2 mb-2" data-type="maternal" onclick="showTemplate('maternal')">
+          Maternal/Prenatal
+        </button>
+        <button class="btn btn-outline-primary btn-sm template-tab me-2 mb-2" data-type="fp" onclick="showTemplate('fp')">
+          FP Form 1
+        </button>
+        <button class="btn btn-outline-primary btn-sm template-tab me-2 mb-2" data-type="eccd" onclick="showTemplate('eccd')">
+          Child Health-ECCD
+        </button>
+        <button class="btn btn-outline-primary btn-sm template-tab me-2 mb-2" data-type="imm" onclick="showTemplate('imm')">
+          Immunization
+        </button>
+        <button class="btn btn-outline-primary btn-sm template-tab me-2 mb-2" data-type="lab" onclick="showTemplate('lab')">
+          Laboratory Referral
+        </button>
+        <button class="btn btn-outline-primary btn-sm template-tab me-2 mb-2" data-type="gen" onclick="showTemplate('gen')">
+          General Consultation
+        </button>
+      </div>
+      <div class="alert alert-light border mb-3 no-print" style="font-size:0.85rem;">
+        Simplified demo layouts only. Official DOH forms keep their required format — printing or reproduction only where authorized.
+      </div>
+
+      <!-- Maternal Template -->
+      <div id="template-maternal" class="template-panel">
+        <div class="print-template-page">
+          <div style="text-align:center;font-size:0.8rem;margin-bottom:0.5rem;">Republic of the Philippines &bull; Department of Health</div>
+          <h2>PRENATAL CARE RECORD<br><small style="font-size:0.85rem;font-weight:400;">Maternal Form 1 — Simplified</small></h2>
+
+          <div class="form-section">
+            <h3>Patient Information</h3>
+            <div class="row">
+              <div class="col-6 mb-2">
+                <label style="font-size:0.82rem;">Last Name</label>
+                <div class="form-field-line"></div>
+              </div>
+              <div class="col-6 mb-2">
+                <label style="font-size:0.82rem;">First Name</label>
+                <div class="form-field-line"></div>
+              </div>
+              <div class="col-6 mb-2">
+                <label style="font-size:0.82rem;">Middle Name</label>
+                <div class="form-field-line"></div>
+              </div>
+              <div class="col-3 mb-2">
+                <label style="font-size:0.82rem;">Age</label>
+                <div class="form-field-line"></div>
+              </div>
+              <div class="col-3 mb-2">
+                <label style="font-size:0.82rem;">Birthdate</label>
+                <div class="form-field-line"></div>
+              </div>
+              <div class="col-8 mb-2">
+                <label style="font-size:0.82rem;">Complete Address / Purok</label>
+                <div class="form-field-line"></div>
+              </div>
+              <div class="col-4 mb-2">
+                <label style="font-size:0.82rem;">Contact Number</label>
+                <div class="form-field-line"></div>
+              </div>
+              <div class="col-6 mb-2">
+                <label style="font-size:0.82rem;">UPI (Unified Patient ID)</label>
+                <div class="form-field-line"></div>
+              </div>
+              <div class="col-6 mb-2">
+                <label style="font-size:0.82rem;">PhilHealth No.</label>
+                <div class="form-field-line"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>Prenatal Visit Record</h3>
+            <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+              <thead>
+                <tr style="background:#e8f4ec;">
+                  <th style="border:1px solid #333;padding:4px;">Date</th>
+                  <th style="border:1px solid #333;padding:4px;">AOG</th>
+                  <th style="border:1px solid #333;padding:4px;">BP</th>
+                  <th style="border:1px solid #333;padding:4px;">Weight</th>
+                  <th style="border:1px solid #333;padding:4px;">FHT</th>
+                  <th style="border:1px solid #333;padding:4px;">Edema</th>
+                  <th style="border:1px solid #333;padding:4px;">Findings</th>
+                  <th style="border:1px solid #333;padding:4px;">BHW/RHM</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="form-section">
+            <h3>Birth Outcome</h3>
+            <div class="row">
+              <div class="col-4 mb-2"><label style="font-size:0.82rem;">Date of Delivery</label><div class="form-field-line"></div></div>
+              <div class="col-4 mb-2"><label style="font-size:0.82rem;">Mode of Delivery</label><div class="form-field-line"></div></div>
+              <div class="col-4 mb-2"><label style="font-size:0.82rem;">Birth Weight</label><div class="form-field-line"></div></div>
+              <div class="col-4 mb-2"><label style="font-size:0.82rem;">Baby Sex</label><div class="form-field-line"></div></div>
+              <div class="col-4 mb-2"><label style="font-size:0.82rem;">APGAR Score</label><div class="form-field-line"></div></div>
+              <div class="col-4 mb-2"><label style="font-size:0.82rem;">Place of Delivery</label><div class="form-field-line"></div></div>
+            </div>
+          </div>
+
+          <div class="row mt-2">
+            <div class="col-6">
+              <label style="font-size:0.82rem;">Recorded by:</label>
+              <div class="form-field-line"></div>
+              <div style="font-size:0.75rem;text-align:center;margin-top:2px;">BHW / RHM Signature over Printed Name</div>
+            </div>
+            <div class="col-6">
+              <label style="font-size:0.82rem;">Verified by:</label>
+              <div class="form-field-line"></div>
+              <div style="font-size:0.75rem;text-align:center;margin-top:2px;">Nurse/Midwife Signature over Printed Name</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FP Template -->
+      <div id="template-fp" class="template-panel d-none">
+        <div class="print-template-page">
+          <div style="text-align:center;font-size:0.8rem;margin-bottom:0.5rem;">Republic of the Philippines &bull; Department of Health</div>
+          <h2>FAMILY PLANNING RECORD<br><small style="font-size:0.85rem;font-weight:400;">FP Form 1 — Simplified</small></h2>
+
+          <div class="form-section">
+            <h3>Client Information</h3>
+            <div class="row">
+              <div class="col-6 mb-2"><label style="font-size:0.82rem;">Last Name</label><div class="form-field-line"></div></div>
+              <div class="col-6 mb-2"><label style="font-size:0.82rem;">First Name</label><div class="form-field-line"></div></div>
+              <div class="col-4 mb-2"><label style="font-size:0.82rem;">Age</label><div class="form-field-line"></div></div>
+              <div class="col-4 mb-2"><label style="font-size:0.82rem;">Birthdate</label><div class="form-field-line"></div></div>
+              <div class="col-4 mb-2"><label style="font-size:0.82rem;">Civil Status</label><div class="form-field-line"></div></div>
+              <div class="col-8 mb-2"><label style="font-size:0.82rem;">Address / Purok</label><div class="form-field-line"></div></div>
+              <div class="col-4 mb-2"><label style="font-size:0.82rem;">Contact</label><div class="form-field-line"></div></div>
+              <div class="col-6 mb-2"><label style="font-size:0.82rem;">UPI</label><div class="form-field-line"></div></div>
+              <div class="col-6 mb-2"><label style="font-size:0.82rem;">No. of Living Children</label><div class="form-field-line"></div></div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3>FP Method &amp; Follow-up Visits</h3>
+            <div class="row mb-2">
+              <div class="col-6"><label style="font-size:0.82rem;">FP Method Accepted</label><div class="form-field-line"></div></div>
+              <div class="col-6"><label style="font-size:0.82rem;">Date Started</label><div class="form-field-line"></div></div>
+            </div>
+            <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+              <thead>
+                <tr style="background:#e8f4ec;">
+                  <th style="border:1px solid #333;padding:4px;">Visit Date</th>
+                  <th style="border:1px solid #333;padding:4px;">Method Used</th>
+                  <th style="border:1px solid #333;padding:4px;">Quantity Given</th>
+                  <th style="border:1px solid #333;padding:4px;">Next Visit</th>
+                  <th style="border:1px solid #333;padding:4px;">Remarks</th>
+                  <th style="border:1px solid #333;padding:4px;">Provider</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="form-section">
+            <h3>Counseling Notes</h3>
+            <div style="border:1px solid #ccc;min-height:60px;border-radius:4px;padding:4px;"></div>
+          </div>
+
+          <div class="row mt-2">
+            <div class="col-6">
+              <label style="font-size:0.82rem;">Recorded by:</label><div class="form-field-line"></div>
+              <div style="font-size:0.75rem;text-align:center;margin-top:2px;">BHW / RHM Signature over Printed Name</div>
+            </div>
+            <div class="col-6">
+              <label style="font-size:0.82rem;">Verified by:</label><div class="form-field-line"></div>
+              <div style="font-size:0.75rem;text-align:center;margin-top:2px;">Nurse/Midwife Signature over Printed Name</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ECCD Template -->
+      <div id="template-eccd" class="template-panel d-none">
+        <div class="print-template-page">
+          <div class="tpl-header">Republic of the Philippines &bull; Department of Health</div>
+          <h2>CHILD HEALTH RECORD<br><small>Child Health-ECCD — Simplified</small></h2>
+          <div class="form-section">
+            <h3>Child Information</h3>
+            <div class="tpl-grid">
+              <div><label>Child Name</label><div class="form-field-line"></div></div>
+              <div><label>Birthdate / Sex</label><div class="form-field-line"></div></div>
+              <div><label>UPI</label><div class="form-field-line"></div></div>
+              <div><label>Parent / Guardian</label><div class="form-field-line"></div></div>
+            </div>
+          </div>
+          <div class="form-section">
+            <h3>Growth &amp; Services (BCG, DPT, OPV, Measles, Vit A)</h3>
+            <table class="tpl-table">
+              <thead><tr><th>Date</th><th>Weight</th><th>Height</th><th>Service Given</th><th>Next Visit</th><th>Provider</th></tr></thead>
+              <tbody>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="tpl-sign"><div>Recorded by:<div class="form-field-line"></div></div><div>Verified by:<div class="form-field-line"></div></div></div>
+        </div>
+      </div>
+
+      <!-- Immunization Template -->
+      <div id="template-imm" class="template-panel d-none">
+        <div class="print-template-page">
+          <div class="tpl-header">Republic of the Philippines &bull; Department of Health</div>
+          <h2>IMMUNIZATION RECORD<br><small>Expanded Program on Immunization — Simplified</small></h2>
+          <div class="form-section">
+            <h3>Child Information</h3>
+            <div class="tpl-grid">
+              <div><label>Child Name</label><div class="form-field-line"></div></div>
+              <div><label>Birthdate</label><div class="form-field-line"></div></div>
+              <div><label>UPI</label><div class="form-field-line"></div></div>
+              <div><label>Guardian / Contact</label><div class="form-field-line"></div></div>
+            </div>
+          </div>
+          <div class="form-section">
+            <h3>Vaccines Given</h3>
+            <table class="tpl-table">
+              <thead><tr><th>Date</th><th>Vaccine</th><th>Dose</th><th>Batch No.</th><th>Next Visit</th><th>Provider</th></tr></thead>
+              <tbody>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="tpl-sign"><div>Recorded by:<div class="form-field-line"></div></div><div>Verified by:<div class="form-field-line"></div></div></div>
+        </div>
+      </div>
+
+      <!-- Lab Template -->
+      <div id="template-lab" class="template-panel d-none">
+        <div class="print-template-page">
+          <div class="tpl-header">Republic of the Philippines &bull; Department of Health</div>
+          <h2>LABORATORY REQUEST<br><small>Laboratory Referral — Simplified</small></h2>
+          <div class="form-section">
+            <h3>Patient &amp; Request</h3>
+            <div class="tpl-grid">
+              <div><label>Patient Name</label><div class="form-field-line"></div></div>
+              <div><label>UPI</label><div class="form-field-line"></div></div>
+              <div><label>Date Requested</label><div class="form-field-line"></div></div>
+              <div><label>Exam / Test Requested</label><div class="form-field-line"></div></div>
+              <div><label>Reason for Exam</label><div class="form-field-line"></div></div>
+              <div><label>Referred To</label><div class="form-field-line"></div></div>
+            </div>
+          </div>
+          <div class="form-section">
+            <h3>Result (to be filled by lab)</h3>
+            <div class="tpl-box"></div>
+          </div>
+          <div class="tpl-sign"><div>Requested by:<div class="form-field-line"></div></div><div>Verified by:<div class="form-field-line"></div></div></div>
+        </div>
+      </div>
+
+      <!-- General Template -->
+      <div id="template-gen" class="template-panel d-none">
+        <div class="print-template-page">
+          <div class="tpl-header">Republic of the Philippines &bull; Department of Health</div>
+          <h2>CONSULTATION RECORD<br><small>General Consultation — Simplified</small></h2>
+          <div class="form-section">
+            <h3>Patient Information</h3>
+            <div class="tpl-grid">
+              <div><label>Patient Name</label><div class="form-field-line"></div></div>
+              <div><label>Age / Sex</label><div class="form-field-line"></div></div>
+              <div><label>UPI</label><div class="form-field-line"></div></div>
+              <div><label>Date of Visit</label><div class="form-field-line"></div></div>
+            </div>
+          </div>
+          <div class="form-section">
+            <h3>Findings &amp; Treatment</h3>
+            <table class="tpl-table">
+              <thead><tr><th>Date</th><th>Complaint / Findings</th><th>Treatment</th><th>Provider</th></tr></thead>
+              <tbody>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+                <tr><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td><td class="tpl-cell"></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="tpl-sign"><div>Recorded by:<div class="form-field-line"></div></div><div>Verified by:<div class="form-field-line"></div></div></div>
+        </div>
+      </div>
+    </div><!-- /templates -->
+
+    <!-- ══════════════════════════════════════
+         S6 — INVENTORY DASHBOARD
+    ══════════════════════════════════════ -->
+    <div class="page-section" id="page-inventory">
+      <div class="page-header">
+        <h1 class="page-title"><i data-lucide="boxes"></i> Inventory Dashboard</h1>
+        <button class="btn btn-outline-primary" onclick="navigateTo('stock-moves')">
+          <i data-lucide="arrow-right-left" class="me-1"></i> Stock Movements
+        </button>
+      </div>
+
+      <div class="alert alert-info mb-3" style="font-size:0.9rem;">
+        <i data-lucide="info" class="me-1"></i>
+        <strong>FEFO (First Expired, First Out)</strong> is enforced on stock out. Items near expiry (&lt;90 days) or expired are flagged automatically.
+      </div>
+
+      <div class="row g-3" id="inventory-cards">
+        <!-- Cards rendered by JS -->
+        <div class="col-12 text-center text-muted py-4">Loading inventory...</div>
+      </div>
+    </div><!-- /inventory -->
+
+    <!-- ══════════════════════════════════════
+         S7 — STOCK MOVEMENTS
+    ══════════════════════════════════════ -->
+    <div class="page-section" id="page-stock-moves">
+      <div class="page-header">
+        <h1 class="page-title"><i data-lucide="arrow-right-left"></i> Stock Movements</h1>
+      </div>
+
+      <!-- Tabs for stock transactions -->
+      <ul class="nav nav-tabs mb-3 no-print" id="stock-tabs" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-stockin">Stock-In</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-stockout">Stock-Out</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-dispose">Disposal</button></li>
+      </ul>
+
+      <div class="tab-content mb-3">
+        <!-- STOCK IN -->
+        <div class="tab-pane fade show active" id="tab-stockin">
+          <div class="card">
+            <div class="card-header-green">Record Stock-In</div>
+            <div class="card-body">
+              <form id="sm-form-in" novalidate>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Item <span class="text-danger">*</span></label>
+                    <select id="sm-item-in" class="form-select" required></select>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Batch No. <span class="text-danger">*</span></label>
+                    <input type="text" id="sm-batch-in" class="form-control" placeholder="e.g. AMX-2026-003" required>
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label">Quantity <span class="text-danger">*</span></label>
+                    <input type="number" id="sm-qty-in" class="form-control" min="1" required>
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label">Expiry Date</label>
+                    <input type="date" id="sm-expiry-in" class="form-control">
+                    <div class="form-text">Leave blank for non-expiring equipment.</div>
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label">Date Received <span class="text-danger">*</span></label>
+                    <input type="date" id="sm-received-in" class="form-control" required>
+                  </div>
+                  <div class="col-md-3">
+                    <label class="form-label">Supplier</label>
+                    <input type="text" id="sm-supplier-in" class="form-control" placeholder="Optional">
+                  </div>
+                  <div class="col-12">
+                    <button type="button" class="btn btn-success" onclick="stockIn()">
+                      Record Stock-In
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- STOCK OUT -->
+        <div class="tab-pane fade" id="tab-stockout">
+          <div class="card">
+            <div class="card-header-green">Record Stock-Out (FEFO)</div>
+            <div class="card-body">
+              <div class="alert alert-info py-2" style="font-size:0.88rem;">
+                <i data-lucide="info" class="me-1"></i><strong>FEFO Auto-pick:</strong> The system will automatically issue from the earliest expiring batch first.
+              </div>
+              <form id="sm-form-out" novalidate>
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label">Item <span class="text-danger">*</span></label>
+                    <select id="sm-item-out" class="form-select" required></select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Quantity to Issue <span class="text-danger">*</span></label>
+                    <input type="number" id="sm-qty-out" class="form-control" min="1" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Date Issued <span class="text-danger">*</span></label>
+                    <input type="date" id="sm-date-out" class="form-control" required>
+                  </div>
+                  <div class="col-12">
+                    <button type="button" class="btn btn-primary" onclick="stockOut()">
+                      <i data-lucide="circle-minus" class="me-1"></i>Issue Stock (FEFO)
+                    </button>
+                  </div>
+                </div>
+              </form>
+              <div id="fefo-result"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DISPOSAL -->
+        <div class="tab-pane fade" id="tab-dispose">
+          <div class="card">
+            <div class="card-header-green"><i data-lucide="trash-2" class="me-2"></i>Record Disposal</div>
+            <div class="card-body">
+              <div class="alert alert-warning py-2" style="font-size:0.88rem;">
+                <i data-lucide="triangle-alert" class="me-1"></i>Disposal requires a reason and is permanently logged.
+              </div>
+              <form id="sm-form-dispose" novalidate>
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label">Item <span class="text-danger">*</span></label>
+                    <select id="sm-item-dispose" class="form-select" required></select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Batch No. <span class="text-danger">*</span></label>
+                    <input type="text" id="sm-batch-dispose" class="form-control" placeholder="Must match existing batch" required>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Qty to Dispose <span class="text-danger">*</span></label>
+                    <input type="number" id="sm-qty-dispose" class="form-control" min="1" required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Reason for Disposal <span class="text-danger">*</span></label>
+                    <input type="text" id="sm-reason-dispose" class="form-control" placeholder="e.g. Expired, Damaged packaging..." required>
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Date <span class="text-danger">*</span></label>
+                    <input type="date" id="sm-date-dispose" class="form-control" required>
+                  </div>
+                  <div class="col-12">
+                    <button type="button" class="btn btn-danger" onclick="stockDispose()">
+                      <i data-lucide="trash-2" class="me-1"></i>Record Disposal
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ledger Table -->
+      <div class="card">
+        <div class="card-header-green d-flex align-items-center gap-3">
+          <span><i data-lucide="notebook-text" class="me-2"></i>Stock Movement Ledger</span>
+          <div class="ms-auto d-flex gap-1 flex-wrap">
+            <button class="btn btn-sm btn-outline-light" onclick="filterLedger('all')">All</button>
+            <button class="btn btn-sm btn-outline-light" onclick="filterLedger('Stock-In')">Stock-In</button>
+            <button class="btn btn-sm btn-outline-light" onclick="filterLedger('Stock-Out')">Stock-Out</button>
+            <button class="btn btn-sm btn-outline-light" onclick="filterLedger('Disposal/Expired-Removal')">Disposal</button>
+          </div>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+              <thead>
+                <tr><th>Date</th><th>Item</th><th>Type</th><th>Qty</th><th>Batch</th><th>Reason</th><th>By</th><th>Notes</th></tr>
+              </thead>
+              <tbody id="ledger-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div><!-- /stock-moves -->
+
+    <!-- ══════════════════════════════════════
+         S8 — SCHEDULING CALENDAR
+    ══════════════════════════════════════ -->
+    <div class="page-section" id="page-scheduling">
+      <div class="page-header">
+        <h1 class="page-title"><i data-lucide="calendar"></i> Scheduling Calendar</h1>
+        <button class="btn btn-primary no-print" id="btn-add-apt" data-bs-toggle="modal" data-bs-target="#modal-add-apt">
+          <i data-lucide="calendar-plus" class="me-1"></i> Add Appointment
+        </button>
+      </div>
+
+      <div class="row g-3">
+        <!-- Calendar -->
+        <div class="col-12 col-lg-8">
+          <div class="card">
+            <div class="card-header-green d-flex align-items-center justify-content-between">
+              <button class="btn btn-sm btn-outline-light" onclick="calPrev()"><i data-lucide="chevron-left"></i></button>
+              <span id="cal-month-label" class="fw-700">Month Year</span>
+              <button class="btn btn-sm btn-outline-light" onclick="calNext()"><i data-lucide="chevron-right"></i></button>
+            </div>
+            <div class="card-body p-2" id="cal-grid"></div>
+            <div class="card-body pt-0 pb-2 d-flex gap-3 flex-wrap" style="font-size:0.78rem;">
+              <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#cfe2ff;"></span> Scheduled</span>
+              <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#d1e7dd;"></span> Completed</span>
+              <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#e2e3e5;"></span> Cancelled</span>
+              <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#f8d7da;"></span> No-Show</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Upcoming list -->
+        <div class="col-12 col-lg-4">
+          <div class="card">
+            <div class="card-header-green"><i data-lucide="list-checks" class="me-2"></i>Upcoming Appointments</div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                  <thead><tr><th>Date/Time</th><th>Patient</th><th>Program</th><th>Status</th><th>SMS</th></tr></thead>
+                  <tbody id="apt-list-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /scheduling -->
+
+    <!-- ══════════════════════════════════════
+         S9 — SMS COMPOSE & LOGS
+    ══════════════════════════════════════ -->
+    <div class="page-section" id="page-sms">
+      <div class="page-header">
+        <h1 class="page-title"><i data-lucide="messages-square"></i> SMS Compose &amp; Logs</h1>
+      </div>
+
+      <div class="alert alert-warning mb-3" style="font-size:0.88rem;">
+        <i data-lucide="shield-check" class="me-1"></i>
+        <strong>Privacy Policy:</strong> Only privacy-safe templates allowed. No diagnosis text in SMS. Consent must be verified before sending. Gateway: <strong>Semaphore (Simulated)</strong>.
+      </div>
+
+      <div class="row g-3">
+        <!-- Compose -->
+        <div class="col-12 col-lg-5">
+          <div class="card h-100">
+            <div class="card-header-green"><i data-lucide="square-pen" class="me-2"></i>Compose SMS</div>
+            <div class="card-body">
+              <form id="sms-form" novalidate>
+                <div class="mb-3">
+                  <label class="form-label">Patient <span class="text-danger">*</span></label>
+                  <select id="sms-patient-select" class="form-select" required>
+                    <option value="">-- Select Patient --</option>
+                  </select>
+                </div>
+                <div class="alert alert-danger py-2 d-none" id="sms-consent-warning" style="font-size:0.85rem;">
+                  <i data-lucide="triangle-alert" class="me-1"></i> This patient has <strong>NOT</strong> given SMS consent. SMS cannot be sent.
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Template <span class="text-danger">*</span></label>
+                  <select id="sms-template-select" class="form-select" required>
+                    <option value="">-- Select Template --</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Date (for [date] placeholder)</label>
+                  <input type="date" id="sms-date-fill" class="form-control" onchange="updateSMSPreview()">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Message Preview</label>
+                  <div class="sms-template-preview" id="sms-preview">(select a template above)</div>
+                </div>
+                <div class="mb-3">
+                  <div class="form-check">
+                    <input type="checkbox" class="form-check-input" id="sms-consent-check">
+                    <label class="form-check-label" for="sms-consent-check">
+                      <strong>I confirm patient has given SMS consent</strong> and this message is privacy-safe.
+                    </label>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-primary w-100" id="btn-send-sms" onclick="sendSMS()">
+                  <i data-lucide="send" class="me-2"></i>Send SMS (Simulated)
+                </button>
+                <div class="alert alert-light border mt-2 d-none" id="sms-policy-note" style="font-size:.82rem">Sending is performed by the nurse per clinic policy. You can review the delivery log below.</div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- Logs -->
+        <div class="col-12 col-lg-7">
+          <div class="card">
+            <div class="card-header-green"><i data-lucide="notebook-text" class="me-2"></i>SMS Delivery Log</div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                  <thead>
+                    <tr><th>Sent At</th><th>Recipient</th><th>Message</th><th>Gateway</th><th>Status</th><th>Consent</th></tr>
+                  </thead>
+                  <tbody id="sms-log-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /sms -->
+
+    <!-- ══════════════════════════════════════
+         S10 — OCR / DIGITIZATION
+    ══════════════════════════════════════ -->
+    <div class="page-section" id="page-ocr">
+      <div class="page-header">
+        <h1 class="page-title"><i data-lucide="file-text"></i> OCR / Digitization</h1>
+      </div>
+
+      <div class="alert alert-info mb-3" style="font-size:0.88rem;">
+        <i data-lucide="bot" class="me-1"></i>
+        <strong>Human-in-the-Loop:</strong> AI OCR generates a draft only. A staff member must <strong>verify and save</strong> every field manually. <em>AI never auto-saves.</em> Manual encoding is always available.
+      </div>
+
+      <!-- Upload -->
+      <div id="ocr-upload-section">
+        <div class="card mb-3">
+          <div class="card-header-green"><i data-lucide="upload" class="me-2"></i>Upload Scanned Form</div>
+          <div class="card-body text-center py-4">
+            <i data-lucide="image"></i>
+            <p class="text-muted mt-2">Upload an image of a scanned health form for OCR processing.</p>
+            <label class="btn btn-primary">
+              <i data-lucide="upload" class="me-1"></i>Choose Image File
+              <input type="file" id="ocr-upload-input" accept="image/*,.pdf" style="display:none;" onchange="handleOCRUpload(this)">
+            </label>
+            <div class="mt-2 text-muted" style="font-size:0.82rem;">Accepted: JPG, PNG, PDF &bull; Max 10MB (simulated)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress -->
+      <div id="ocr-progress-section" class="d-none">
+        <div class="card mb-3">
+          <div class="card-header-green"><i data-lucide="hourglass" class="me-2"></i>Scanning: <span id="ocr-filename"></span></div>
+          <div class="card-body">
+            <p class="text-muted mb-2">Running OCR analysis... Please wait.</p>
+            <div class="progress" style="height:24px;">
+              <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" id="ocr-progress-bar" style="width:0%;">0%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- OCR Draft -->
+      <div id="ocr-draft-section" class="d-none">
+        <div class="card mb-3">
+          <div class="card-header-green">
+            <i data-lucide="eye" class="me-2"></i>OCR Draft — <span id="ocr-source-file"></span>
+            <span class="badge bg-warning text-dark ms-2">REVIEW REQUIRED</span>
+          </div>
+          <div class="card-body">
+
+            <div class="alert alert-warning py-2 mb-3" style="font-size:0.88rem;">
+              <i data-lucide="triangle-alert" class="me-1"></i>
+              Fields highlighted in yellow have <strong>confidence below 80%</strong> and require manual review. <strong>Do not save without verifying all fields.</strong>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label">Assign to Patient</label>
+                <select id="ocr-patient-select" class="form-select">
+                  <option value="">-- Select Patient --</option>
+                </select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Program Type</label>
+                <select id="ocr-program-select" class="form-select">
+                  <option>Maternal/Prenatal</option>
+                  <option>Family Planning</option>
+                  <option>Child Health-ECCD</option>
+                  <option>Immunization</option>
+                  <option>Laboratory Referral</option>
+                  <option>General Consultation</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row g-3">
+              <!-- Raw OCR text -->
+              <div class="col-12 col-md-5">
+                <label class="form-label fw-700">Raw OCR Output</label>
+                <textarea class="form-control" id="ocr-raw-text" rows="10" readonly style="font-family:monospace;font-size:0.82rem;background:#f8f9fa;"></textarea>
+              </div>
+              <!-- Editable fields -->
+              <div class="col-12 col-md-7">
+                <label class="form-label fw-700">Extracted Fields <small class="text-muted">(click to edit)</small></label>
+                <div id="ocr-fields-container"></div>
+              </div>
+            </div>
+
+            <div class="d-flex gap-2 mt-3">
+              <button class="btn btn-success" onclick="verifyAndSaveOCR()">
+                <i data-lucide="circle-check" class="me-1"></i>Verify &amp; Save to Records
+              </button>
+              <button class="btn btn-danger" onclick="rejectOCR()">
+                <i data-lucide="circle-x" class="me-1"></i>Reject
+              </button>
+              <button class="btn btn-outline-secondary ms-auto" onclick="resetOCRPanel()">
+                <i data-lucide="rotate-ccw" class="me-1"></i>Upload New
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Rejected List -->
+      <div class="card">
+        <div class="card-header-green"><i data-lucide="circle-x" class="me-2"></i>Rejected OCR Drafts</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+              <thead><tr><th>Uploaded At</th><th>Filename</th><th>Rejected At</th><th>Rejected By</th><th>Reason</th></tr></thead>
+              <tbody id="ocr-rejected-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div><!-- /ocr -->
+
+    <!-- ══════════════════════════════════════
+         S11 — REPORTS & BACKUP
+    ══════════════════════════════════════ -->
+    <div class="page-section" id="page-reports">
+      <div class="page-header">
+        <h1 class="page-title"><i data-lucide="chart-column"></i> Reports &amp; Backup</h1>
+        <div class="d-flex gap-2">
+          <button class="btn btn-outline-primary no-print" onclick="window.print()">
+            <i data-lucide="printer" class="me-1"></i>Print Report
+          </button>
+          <button class="btn btn-success no-print" id="backup-btn" onclick="simulateBackup()">
+            <i data-lucide="database-backup" class="me-1"></i>Export Backup
+          </button>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="row g-3 mb-4">
+        <div class="col-12 col-lg-7">
+          <div class="card h-100">
+            <div class="card-body">
+              <h6 class="fw-700 text-green mb-3"><i data-lucide="chart-column" class="me-1"></i>Service Records by Program</h6>
+              <div class="chart-container" style="height:280px;"><canvas id="report-chart-visits"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-lg-5">
+          <div class="card h-100">
+            <div class="card-body">
+              <h6 class="fw-700 text-green mb-3"><i data-lucide="chart-pie" class="me-1"></i>Documents by Status</h6>
+              <div class="chart-container" style="height:280px;"><canvas id="report-chart-docs"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Audit Table -->
+      <div class="card">
+        <div class="card-header-green"><i data-lucide="shield-check" class="me-2"></i>Audit Trail Log</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+              <thead>
+                <tr><th>Timestamp</th><th>Actor</th><th>Action</th><th>Description</th><th>IP</th><th>Record Ref</th></tr>
+              </thead>
+              <tbody id="audit-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div><!-- /reports -->
+
+    <!-- ══════════════════════════════════════
+         USERS & ROLES (Admin only, FR-04/BR-11)
+    ══════════════════════════════════════ -->
+    <div class="page-section" id="page-users">
+      <div class="card">
+        <div class="card-head">
+          <h6 class="card-title">Users &amp; Roles</h6>
+          <span class="code-chip">Admin only</span>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr><th>Role</th><th>Access</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="alert alert-light border mt-3" style="font-size:.82rem">
+        Deactivated roles cannot sign in, but their history is retained. The Administrator role cannot be deactivated in this demo.
+      </div>
+    </div><!-- /users -->
+
+    <!-- ══════════════════════════════════════
+         S12 — RESIDENT PORTAL
+    ══════════════════════════════════════ -->
+    <div class="page-section" id="page-resident-portal">
+      <div class="page-header">
+        <h1 class="page-title"><i data-lucide="heart-pulse"></i> My Health Portal</h1>
+        <span class="badge bg-success fs-6">Resident View</span>
+      </div>
+
+      <div class="resident-hero mb-3">
+        <div class="d-flex align-items-center gap-3">
+          <div class="resident-avatar">
+            <i data-lucide="circle-user-round"></i>
+          </div>
+          <div>
+            <div class="resident-name" id="resident-name-display">—</div>
+            <div class="resident-upi" id="resident-upi-display">—</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="alert alert-light border mb-3">
+        You are viewing <strong>your own health information only</strong>. No other patient records are accessible in this view.
+      </div>
+
+      <div class="row g-3">
+        <!-- Personal Info -->
+        <div class="col-12 col-md-4">
+          <div class="card h-100">
+            <div class="card-header-green"><i data-lucide="user" class="me-2"></i>My Information</div>
+            <div class="card-body p-0">
+              <table class="table table-sm mb-0" id="resident-info-body"></table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Schedule -->
+        <div class="col-12 col-md-8">
+          <div class="card mb-3">
+            <div class="card-header-green"><i data-lucide="calendar" class="me-2"></i>My Appointments</div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                  <thead><tr><th>Date &amp; Time</th><th>Program</th><th>Status</th><th>Notes</th></tr></thead>
+                  <tbody id="resident-sched-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header-green"><i data-lucide="clipboard-list" class="me-2"></i>My Service Records <small style="opacity:0.7;">(summary only)</small></div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                  <thead><tr><th>Date</th><th>Program</th><th>Reference No.</th><th>Recorded By</th></tr></thead>
+                  <tbody id="resident-records-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div><!-- /resident-portal -->
+
+  </main><!-- /.content -->
+
+    <footer class="app-footer">
+      Tubtubon eHealth · Barangay Tubtubon Health Center, Negros Oriental
+    </footer>
+  </div><!-- /.app-main -->
+</div><!-- /.app-shell -->
+
+<!-- ══════════════════════════════════════════════════
+     PREVIEW NOTICE (shown on load, login, role switch)
+═══════════════════════════════════════════════════ -->
+<div class="modal fade" id="modal-preview-notice" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i data-lucide="info" class="me-2"></i>System Preview Notice</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0">This is a <strong>preview</strong> of the Tubtubon eHealth system and is currently <strong>under development</strong>. All UI and processes shown here are frontend mockups and are subject to change and adjustments.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" data-bs-dismiss="modal">I Understand</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     TOAST CONTAINER
+═══════════════════════════════════════════════════ -->
+<div id="toast-container"></div>
+
+<!-- ══════════════════════════════════════════════════
+     MODALS
+═══════════════════════════════════════════════════ -->
+
+<!-- Patient Detail Modal -->
+<div class="modal fade" id="modal-patient-detail" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--green-dark);color:#fff;">
+        <h5 class="modal-title"><i data-lucide="users" class="me-2"></i><span id="modal-patient-title">Patient Detail</span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="modal-patient-detail-body"></div>
+      <div class="modal-footer">
+        <button class="btn btn-outline-primary" onclick="window.print()"><i data-lucide="printer" class="me-1"></i>Print</button>
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Patient Modal -->
+<div class="modal fade" id="modal-add-patient" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--green-dark);color:#fff;">
+        <h5 class="modal-title"><i data-lucide="user-plus" class="me-2"></i>Add New Patient</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="add-patient-form" novalidate>
+          <div class="row g-3">
+            <div class="col-md-4"><label class="form-label">Last Name *</label><input type="text" id="np-lastname" class="form-control" required></div>
+            <div class="col-md-4"><label class="form-label">First Name *</label><input type="text" id="np-firstname" class="form-control" required></div>
+            <div class="col-md-4"><label class="form-label">Middle Name</label><input type="text" id="np-middlename" class="form-control"></div>
+            <div class="col-md-3"><label class="form-label">Sex *</label>
+              <select id="np-sex" class="form-select" required><option value="">--</option><option>Male</option><option>Female</option></select></div>
+            <div class="col-md-4"><label class="form-label">Birthdate *</label><input type="date" id="np-birthdate" class="form-control" required></div>
+            <div class="col-md-5"><label class="form-label">Contact (09...)</label><input type="text" id="np-contact" class="form-control" placeholder="09XXXXXXXXX"></div>
+            <div class="col-md-6"><label class="form-label">Purok *</label><input type="text" id="np-purok" class="form-control" placeholder="e.g. Purok 1 - Sampaguita" required></div>
+            <div class="col-md-6"><label class="form-label">Guardian</label><input type="text" id="np-guardian" class="form-control"></div>
+            <div class="col-md-6"><label class="form-label">PhilHealth No.</label><input type="text" id="np-philhealth" class="form-control"></div>
+            <div class="col-md-6">
+              <label class="form-label">SMS Consent</label>
+              <select id="np-consent" class="form-select"><option value="true">Yes — Patient consented</option><option value="false">No — No consent given</option></select>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" onclick="addNewPatient()"><i data-lucide="save" class="me-1"></i>Save Patient</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Doc Status Modal -->
+<div class="modal fade" id="modal-doc-status" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--green-dark);color:#fff;">
+        <h5 class="modal-title"><i data-lucide="refresh-ccw" class="me-2"></i>Update Document Status</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p><strong id="doc-status-modal-title"></strong></p>
+        <p>Current status: <strong id="doc-status-current"></strong></p>
+        <input type="hidden" id="doc-status-docId">
+        <label class="form-label">New Status</label>
+        <select id="doc-status-new" class="form-select"></select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" onclick="saveDocStatus()">Update Status</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Document Modal -->
+<div class="modal fade" id="modal-add-doc" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--green-dark);color:#fff;">
+        <h5 class="modal-title"><i data-lucide="file-plus-2" class="me-2"></i>Add Document Record</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="add-doc-form" novalidate>
+          <div class="row g-3">
+            <div class="col-md-8"><label class="form-label">Document Title *</label><input type="text" id="nd-title" class="form-control" required></div>
+            <div class="col-md-4"><label class="form-label">Document Type *</label>
+              <select id="nd-type" class="form-select">
+                <option>Maternal/Prenatal</option><option>Family Planning</option>
+                <option>Immunization</option><option>Child Health-ECCD</option>
+                <option>Laboratory Referral</option><option>General Consultation</option>
+              </select></div>
+            <div class="col-md-6"><label class="form-label">Patient (UPI) *</label>
+              <select id="nd-patient" class="form-select" required></select></div>
+            <div class="col-md-6"><label class="form-label">Initial Status</label>
+              <select id="nd-status" class="form-select">
+                <option>Filed</option><option>Pending Digitization</option>
+                <option>Scanned/Attached</option><option>Unavailable/Archived</option>
+              </select></div>
+            <div class="col-md-4"><label class="form-label">Cabinet Location</label><input type="text" id="nd-cabinet" class="form-control" placeholder="e.g. Cabinet A"></div>
+            <div class="col-md-4"><label class="form-label">Box Location</label><input type="text" id="nd-box" class="form-control" placeholder="e.g. Box 2"></div>
+            <div class="col-md-4"><label class="form-label">Folder Location</label><input type="text" id="nd-folder" class="form-control" placeholder="e.g. Folder FP-03"></div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" onclick="addNewDocument()"><i data-lucide="save" class="me-1"></i>Save Document</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Batch Detail Modal -->
+<div class="modal fade" id="modal-batch-detail" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--green-dark);color:#fff;">
+        <h5 class="modal-title" id="modal-batch-title">Batch Details</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="modal-batch-body"></div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Appointment Modal -->
+<div class="modal fade" id="modal-add-apt" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--green-dark);color:#fff;">
+        <h5 class="modal-title"><i data-lucide="calendar-plus" class="me-2"></i>Schedule Appointment</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="apt-form" novalidate>
+          <div class="mb-3">
+            <label class="form-label">Patient *</label>
+            <select id="apt-patient-select" class="form-select" required><option value="">-- Select Patient --</option></select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Program Type *</label>
+            <select id="apt-program" class="form-select" required>
+              <option value="">-- Select Program --</option>
+              <option>Family Planning</option><option>Maternal/Prenatal</option>
+              <option>Child Health-ECCD</option><option>Immunization</option>
+              <option>Laboratory Referral</option><option>General Consultation</option>
+            </select>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6"><label class="form-label">Date *</label><input type="date" id="apt-date" class="form-control" required></div>
+            <div class="col-6"><label class="form-label">Time *</label><input type="time" id="apt-time" class="form-control" required></div>
+          </div>
+          <div class="mb-3"><label class="form-label">Notes</label><textarea id="apt-notes" class="form-control" rows="2"></textarea></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" onclick="saveAppointment();bootstrap.Modal.getInstance(document.getElementById('modal-add-apt')).hide();">
+          <i data-lucide="calendar-check" class="me-1"></i>Schedule
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Appointment Detail Modal -->
+<div class="modal fade" id="modal-apt-detail" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--green-dark);color:#fff;">
+        <h5 class="modal-title"><i data-lucide="calendar" class="me-2"></i>Appointment Detail</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="apt-detail-body"></div>
+      <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="js/mock-data.js"></script>
+<script src="js/app.js"></script>
+
+<!-- Inline: extra handlers that need DOM ready -->
+<script>
+"use strict";
+
+// ── Dashboard date display ──
+document.addEventListener("DOMContentLoaded", () => {
+  const el = document.getElementById("dash-date-display");
+  if (el) {
+    el.textContent = new Date().toLocaleDateString("en-PH", {
+      weekday:"long", year:"numeric", month:"long", day:"numeric"
+    });
+  }
+
+  // Pre-fill today's date in stock/sms forms
+  const todayStr = new Date().toISOString().split("T")[0];
+  ["sm-date-out","sm-date-dispose","sm-received-in","sms-date-fill"].forEach(id => {
+    const el2 = document.getElementById(id);
+    if (el2) el2.value = todayStr;
+  });
+});
+
+// ── Add New Patient ──
+window.addNewPatient = function() {
+  const lastName  = document.getElementById("np-lastname").value.trim().toUpperCase();
+  const firstName = document.getElementById("np-firstname").value.trim();
+  const middleName= document.getElementById("np-middlename").value.trim();
+  const sex       = document.getElementById("np-sex").value;
+  const birthdate = document.getElementById("np-birthdate").value;
+  const contact   = document.getElementById("np-contact").value.trim();
+  const purok     = document.getElementById("np-purok").value.trim();
+  const guardian  = document.getElementById("np-guardian").value.trim();
+  const philhealth= document.getElementById("np-philhealth").value.trim();
+  const consent   = document.getElementById("np-consent").value === "true";
+
+  if (!lastName || !firstName || !sex || !birthdate || !purok) {
+    showToast("Please fill all required fields.", "warning"); return;
+  }
+
+  const year   = new Date().getFullYear();
+  const num    = String(AppState.patients.length + 1).padStart(5, "0");
+  const upi    = `TUB-${year}-${num}`;
+
+  const newP = {
+    upi, last_name: lastName, first_name: firstName, middle_name: middleName,
+    sex, birthdate,
+    purok, address: "Brgy. Tubtubon, Negros Oriental",
+    contact: contact || "09000000000",
+    guardian, guardian_contact: "", philhealth: philhealth || "—",
+    consent_sms: consent, notes: ""
+  };
+
+  AppState.patients.push(newP);
+  addAuditLog(AppState.currentUser, "CREATE", `New patient registered: ${upi} — ${lastName}, ${firstName}`, "127.0.0.1", upi);
+  showToast(`Patient <strong>${lastName}, ${firstName}</strong> registered with UPI <strong>${upi}</strong>.`, "success");
+
+  document.getElementById("add-patient-form").reset();
+  bootstrap.Modal.getInstance(document.getElementById("modal-add-patient"))?.hide();
+  renderPatients();
+};
+
+// ── Add New Document ──
+window.addNewDocument = function() {
+  const title    = document.getElementById("nd-title").value.trim();
+  const docType  = document.getElementById("nd-type").value;
+  const upi      = document.getElementById("nd-patient").value;
+  const status   = document.getElementById("nd-status").value;
+  const cabinet  = document.getElementById("nd-cabinet").value.trim() || "—";
+  const box      = document.getElementById("nd-box").value.trim() || "—";
+  const folder   = document.getElementById("nd-folder").value.trim() || "—";
+
+  if (!title || !upi) { showToast("Title and patient are required.", "warning"); return; }
+
+  const p = getPatientByUpi(upi);
+  AppState._docCounter++;
+  const newDoc = {
+    id: `DOC-${String(AppState._docCounter).padStart(3,"0")}`,
+    title, document_type: docType, upi,
+    patient_name: p ? `${p.last_name}, ${p.first_name}` : upi,
+    status, cabinet_location: cabinet, box_location: box, folder_location: folder,
+    file_path: "", created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    notes: ""
+  };
+
+  AppState.documents.push(newDoc);
+  addAuditLog(AppState.currentUser, "CREATE", `Document ${newDoc.id} created: ${title}`, "127.0.0.1", newDoc.id);
+  showToast(`Document <strong>${newDoc.id}</strong> added.`, "success");
+
+  document.getElementById("add-doc-form").reset();
+  bootstrap.Modal.getInstance(document.getElementById("modal-add-doc"))?.hide();
+
+  // Populate nd-patient on next open
+  renderDocuments();
+};
+
+// ── Pre-fill patient dropdowns in Add Document modal ──
+document.getElementById("modal-add-doc")?.addEventListener("show.bs.modal", () => {
+  const sel = document.getElementById("nd-patient");
+  if (sel) {
+    sel.innerHTML = `<option value="">-- Select Patient --</option>` +
+      AppState.patients.map(p => `<option value="${p.upi}">${p.last_name}, ${p.first_name} — ${p.upi}</option>`).join("");
+  }
+});
+
+// OCR patient select is populated by renderOCR() in app.js when the page is navigated to.
+</script>
+</body>
+</html>
