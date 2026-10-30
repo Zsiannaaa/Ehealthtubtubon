@@ -22,3 +22,6 @@ Thumbs.db
 Desktop.ini
 ~$*
 *.log
+
+# AI assistant workspace state (local tooling, not project code)
+.workbuddy-ai/
