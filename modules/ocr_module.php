@@ -28,36 +28,199 @@ if (!defined('OCR_STATUSES')) {
     define('OCR_STATUSES', ['Draft', 'Verified', 'Rejected']);
 }
 
+if (!defined('OCR_RAW_TEXT_MARKER')) {
+    // Separates human-verifiable field values from raw engine text inside D12 drafts.
+    define('OCR_RAW_TEXT_MARKER', '--- RAW OCR TEXT (evidence only, not committed to D4) ---');
+}
+
 /**
- * Checks whether the configured Tesseract binary is available on the host system.
+ * Resolve the Tesseract binary path across platforms.
  *
- * @return array{available: bool, binary: string, version: string}
+ * Accepts either `TESSERACT_PATH` or `TESSERACT_BIN` (the key shipped in
+ * `.env.example`), then falls back to the conventional Windows install
+ * location and finally to a PATH lookup. Phase 5 Sec. 1.8 / Sec. 2.8.
+ */
+function resolveTesseractBinary(): string
+{
+    $candidates = [
+        (string) env('TESSERACT_PATH', ''),
+        (string) env('TESSERACT_BIN', ''),
+        'C:/Program Files/Tesseract-OCR/tesseract.exe',
+        'C:/Program Files (x86)/Tesseract-OCR/tesseract.exe',
+        '/usr/bin/tesseract',
+        '/usr/local/bin/tesseract',
+    ];
+
+    foreach ($candidates as $candidate) {
+        $candidate = trim($candidate);
+        if ($candidate === '') {
+            continue;
+        }
+        // Bare command name (e.g. "tesseract") -> resolve through PATH
+        if (!preg_match('#[/\\\\]#', $candidate)) {
+            $found = @shell_exec(
+                DIRECTORY_SEPARATOR === '\\'
+                    ? 'where ' . escapeshellarg($candidate) . ' 2>NUL'
+                    : 'command -v ' . escapeshellarg($candidate) . ' 2>/dev/null'
+            );
+            if (is_string($found) && trim($found) !== '') {
+                $first = preg_split('/\r?\n/', trim($found))[0] ?? '';
+                if ($first !== '' && is_file($first)) {
+                    return $first;
+                }
+            }
+            continue;
+        }
+        if (is_file($candidate)) {
+            return $candidate;
+        }
+    }
+
+    return 'C:/Program Files/Tesseract-OCR/tesseract.exe';
+}
+
+/**
+ * Checks whether the configured Tesseract binary is available on the host system
+ * and reports its real version string (FR-25, FR-27).
+ *
+ * @return array{available: bool, binary: string, version: string, mode: string}
  */
 function getOcrEngineStatus(): array
 {
-    $enabled = (string)env('OCR_ENABLED', 'true') !== 'false';
-    $bin     = (string)env('TESSERACT_PATH', 'C:/Program Files/Tesseract-OCR/tesseract.exe');
+    $enabled = (string) env('OCR_ENABLED', 'true') !== 'false';
+    $bin     = resolveTesseractBinary();
 
     if (!$enabled) {
         return [
             'available' => false,
             'binary'    => $bin,
             'version'   => 'Disabled via OCR_ENABLED=false (FR-27 Manual/Fallback Mode Active)',
+            'mode'      => 'disabled',
         ];
     }
 
     if (is_file($bin)) {
+        $version = 'Tesseract OCR (version unavailable)';
+        $out     = @shell_exec(escapeshellarg($bin) . ' --version 2>&1');
+        if (is_string($out) && preg_match('/tesseract\s+v?([\d.]+)/i', $out, $m)) {
+            $version = 'Tesseract OCR v' . $m[1];
+        }
         return [
             'available' => true,
             'binary'    => $bin,
-            'version'   => 'Tesseract OCR Local Binary Detected',
+            'version'   => $version,
+            'mode'      => 'tesseract',
         ];
     }
 
     return [
         'available' => false,
         'binary'    => $bin,
-        'version'   => 'Tesseract CLI not found at path — Heuristic Form Extractor & Manual Fallback Active (FR-27)',
+        'version'   => 'Tesseract CLI not found — Heuristic Form Extractor & Manual Fallback Active (FR-27)',
+        'mode'      => 'fallback',
+    ];
+}
+
+/**
+ * Run Tesseract against an image and return both the reconstructed text and
+ * word-level confidence data from the TSV output.
+ *
+ * TSV is used instead of plain text because it is the only way to obtain real
+ * per-word confidence values, which BR-10 requires in order to flag uncertain
+ * fields for human review.
+ *
+ * @return array{ok: bool, text: string, lines: array<int, array{text: string, conf: float}>, error: string}
+ */
+function runTesseractOnImage(string $imagePath, ?string $binary = null): array
+{
+    $fail = static fn (string $msg): array => [
+        'ok' => false, 'text' => '', 'lines' => [], 'error' => $msg,
+    ];
+
+    if ($imagePath === '' || !is_file($imagePath)) {
+        return $fail('Scan file not found on disk.');
+    }
+
+    $ext = strtolower(pathinfo($imagePath, PATHINFO_EXTENSION));
+    if (!in_array($ext, ['png', 'jpg', 'jpeg', 'webp', 'bmp', 'tif', 'tiff'], true)) {
+        return $fail("Tesseract requires a raster image; '.{$ext}' cannot be OCR-read directly.");
+    }
+
+    $bin = $binary ?: resolveTesseractBinary();
+    if (!is_file($bin)) {
+        return $fail('Tesseract binary not found.');
+    }
+
+    $cmd = escapeshellarg($bin)
+         . ' ' . escapeshellarg($imagePath)
+         . ' stdout --psm 6 tsv 2>&1';
+
+    $out = @shell_exec($cmd);
+    if (!is_string($out) || trim($out) === '') {
+        return $fail('Tesseract produced no output.');
+    }
+
+    $rows = preg_split('/\r?\n/', trim($out));
+    if (!is_array($rows) || count($rows) < 2) {
+        return $fail('Tesseract TSV output was empty.');
+    }
+
+    $header = str_getcsv(array_shift($rows), "\t");
+    if (!in_array('text', $header, true) || !in_array('conf', $header, true)) {
+        return $fail('Tesseract did not return TSV (check binary integrity).');
+    }
+    $idx     = array_flip($header);
+    $lineMap = [];
+    $textLines = [];
+
+    foreach ($rows as $row) {
+        if (trim($row) === '') {
+            continue;
+        }
+        $cols = str_getcsv($row, "\t");
+        if (count($cols) < count($header)) {
+            continue;
+        }
+        // level 5 = word
+        if ((int) ($cols[$idx['level']] ?? 0) !== 5) {
+            continue;
+        }
+        $word = trim((string) ($cols[$idx['text']] ?? ''));
+        if ($word === '') {
+            continue;
+        }
+        $conf = (float) ($cols[$idx['conf']] ?? -1);
+        if ($conf < 0) {
+            continue;
+        }
+        $key = ($cols[$idx['block_num']] ?? '0') . '-' . ($cols[$idx['par_num']] ?? '0') . '-' . ($cols[$idx['line_num']] ?? '0');
+        $lineMap[$key][] = ['text' => $word, 'conf' => $conf];
+    }
+
+    $lines = [];
+    foreach ($lineMap as $words) {
+        $text = trim(implode(' ', array_column($words, 'text')));
+        if ($text === '') {
+            continue;
+        }
+        $confs  = array_column($words, 'conf');
+        $lines[] = [
+            'text'  => $text,
+            'conf'  => round(array_sum($confs) / max(1, count($confs)), 1),
+            'words' => $words,
+        ];
+        $textLines[] = $text;
+    }
+
+    if (empty($lines)) {
+        return $fail('No readable text detected in the scan.');
+    }
+
+    return [
+        'ok'    => true,
+        'text'  => implode("\n", $textLines),
+        'lines' => $lines,
+        'error' => '',
     ];
 }
 
@@ -154,16 +317,423 @@ function getOcrDraftById(int $draftId): ?array
 }
 
 /**
- * Generates realistic structured OCR extraction output, per-field confidence scores,
- * and low-confidence flagged fields (< 75%) for any of the 6 clinic form types.
+ * Canonical label aliases for the fields printed on the 6 DOH standby forms.
+ * Keyed by schema field key; values are normalised label variants as they appear
+ * on the paper forms. Used to map OCR lines onto structured fields (FR-25).
  *
- * @param string $programType
- * @param string $patientName
- * @param string $patientCode
- * @param string $visitDate
- * @param string $optionalImagePath
- * @param string $customRawHint
- * @return array{raw_output: string, flagged_fields: array<int, string>, confidence_scores: array<string, int>}
+ * @return array<string, array<int, string>>
+ */
+function getOcrLabelAliases(): array
+{
+    return [
+        // --- shared identity / encounter ---
+        'patient_name'        => ['patient name', 'client name', 'child name', 'name of patient'],
+        'upi'                 => ['upi', 'patient upi', 'patient code', 'unique patient identifier'],
+        'visit_date'          => ['visit date', 'date of visit', 'service date', 'date of consultation', 'date administered', 'date of request'],
+        'next_visit_date'     => ['next visit date', 'next visit', 'date of follow up visit', 'follow up date', 'follow up'],
+        'treatment_given'     => ['treatment given', 'health services given', 'services given', 'action given', 'treatment'],
+        'guardian_name'       => ['accompanying mother guardian', 'accompanying guardian', 'guardian name'],
+
+        // --- Family Planning (FP Form 1) ---
+        'fp_client_id'        => ['fp client id', 'client id'],
+        'philhealth_no'       => ['philhealth number', 'philhealth no'],
+        'nhts_4ps'            => ['nhts pantawid 4ps', 'nhts 4ps', 'nhts', '4ps'],
+        'client_type'         => ['type of client', 'client type'],
+        'method_accepted'     => ['method accepted', 'method used'],
+        'spouse_name'         => ['spouse name', 'spouse'],
+        'living_children'     => ['number of living children', 'no of living children', 'living children'],
+
+        // --- Maternal / Prenatal (HBMR, Maternal Record) ---
+        'lmp_date'            => ['last menstrual period', 'lmp date', 'lmp'],
+        'edc_date'            => ['estimated date of confinement', 'edc date', 'edc'],
+        'gravida_para'        => ['obstetrical score', 'gravida para', 'g p score', 'g p'],
+        'trimester'           => ['trimester'],
+        'aog_weeks'           => ['age of gestation', 'aog weeks', 'aog'],
+        'fundal_height'       => ['fundal height'],
+        'fetal_heart_tone'    => ['fetal heart tone', 'fetal heart rate'],
+        'tetanus_toxoid'      => ['tetanus toxoid', 'tt dose'],
+        'iron_folate'         => ['iron folate supplementation', 'iron folic acid', 'iron folate'],
+        'danger_signs'        => ['hbrm danger signs referral flag', 'danger signs'],
+        'husband_name'        => ['husband name', 'husbands name', 'partner name'],
+        'birth_plan'          => ['planned place of delivery', 'birth plan'],
+
+        // --- shared vitals ---
+        'bp'                  => ['blood pressure', 'bp'],
+        'weight_kg'           => ['weight kg', 'weight'],
+        'height_cm'           => ['height cm', 'height'],
+        'temp_c'              => ['axillary temperature', 'temperature', 'temp'],
+        'pulse_rate'          => ['pulse rate', 'pulse'],
+        'resp_rate'           => ['respiratory rate', 'resp rate'],
+
+        // --- Child Health / ECCD ---
+        'eccd_child_no'       => ['childs eccd no', 'eccd child no', 'eccd no'],
+        'family_no'           => ['family serial no', 'family no'],
+        'mother_name'         => ['mothers name', 'mother name'],
+        'father_name'         => ['fathers name', 'father name'],
+        'birth_weight_kg'     => ['birth weight kg', 'birth weight'],
+        'birth_length_cm'     => ['birth length cm', 'birth length'],
+        'birth_attendant'     => ['birth attendant'],
+        'current_weight'      => ['current weight kg', 'current weight'],
+        'current_height'      => ['current length height', 'current height'],
+        'whz_status'          => ['who weight for height z score', 'weight for height', 'whz'],
+        'vitamin_a_deworm'    => ['vit a deworming given', 'vitamin a deworming', 'vitamin a', 'deworming'],
+
+        // --- Immunization ---
+        'vaccine_name'        => ['vaccine antigen administered', 'vaccine name', 'antigen', 'vaccine'],
+        'dose_number'         => ['dose column', 'dose number', 'dose'],
+        'route_site'          => ['route injection site', 'route site', 'route'],
+        'vaccine_lot_no'      => ['vaccine lot batch no', 'vaccine lot no', 'lot batch no', 'lot no'],
+        'aefi_status'         => ['aefi post vaccination observation', 'aefi status', 'aefi'],
+
+        // --- Laboratory Referral (NTP Form 2a) ---
+        'collection_facility' => ['requesting facility', 'collection facility'],
+        'exam_reason'         => ['reason for examination', 'reason for exam', 'exam reason'],
+        'treatment_history'   => ['history of treatment', 'treatment history'],
+        'registration_group'  => ['registration group'],
+        'tb_case_no'          => ['tb case lab serial no', 'tb case no', 'lab serial no', 'case no'],
+        'specimen_type'       => ['specimen type', 'specimen'],
+        'specimen_1_date'     => ['specimen 1 collection date', 'specimen 1 date'],
+        'specimen_2_date'     => ['specimen 2 collection date', 'specimen 2 date'],
+        'test_requested'      => ['test requested'],
+        'lab_result_summary'  => ['laboratory result', 'lab result', 'reading', 'result'],
+
+        // --- General Consultation ---
+        'chief_complaint'     => ['chief complaint', 'complaint'],
+        'diagnosis_impression'=> ['clinical impression', 'diagnosis impression', 'impression', 'diagnosis'],
+        'disposition'         => ['disposition'],
+    ];
+}
+
+/**
+ * Normalise a label fragment for alias comparison (lowercase, punctuation removed).
+ */
+function normaliseOcrLabel(string $value): string
+{
+    $v = strtolower(trim($value));
+    $v = (string) preg_replace('/[^a-z0-9]+/', ' ', $v);
+    return trim((string) preg_replace('/\s+/', ' ', $v));
+}
+
+/**
+ * Apply a field-specific validator/cleaner so OCR noise (stray digits, missing
+ * spaces, punctuation) cannot leak into the clinical record. Returns null when
+ * the value does not satisfy the field's expected shape, which causes the field
+ * to be omitted and therefore surfaced for manual entry (BR-10, FR-26).
+ */
+function cleanOcrFieldValue(string $fieldKey, string $rawValue): ?string
+{
+    $v = trim($rawValue);
+    $v = (string) preg_replace('/^[:\-\s|]+/', '', $v);
+    $v = trim((string) preg_replace('/\s+/', ' ', $v));
+    if ($v === '') {
+        return null;
+    }
+
+    switch ($fieldKey) {
+        case 'upi':
+            return preg_match('/TUB\s*-?\s*\d{4}\s*-?\s*\d{5}/i', $v, $m)
+                ? strtoupper((string) preg_replace('/\s+/', '', $m[0]))
+                : null;
+
+        case 'bp':
+            return preg_match('/(\d{2,3})\s*\/\s*(\d{2,3})/', $v, $m)
+                ? $m[1] . '/' . $m[2]
+                : null;
+
+        case 'weight_kg':
+        case 'current_weight':
+        case 'birth_weight_kg':
+            return preg_match('/(\d{1,3}(?:\.\d+)?)/', $v, $m) ? $m[1] . ' kg' : null;
+
+        case 'height_cm':
+        case 'current_height':
+        case 'birth_length_cm':
+            return preg_match('/(\d{1,3}(?:\.\d+)?)/', $v, $m) ? $m[1] . ' cm' : null;
+
+        case 'fundal_height':
+            return preg_match('/(\d{1,2}(?:\.\d+)?)/', $v, $m) ? $m[1] . ' cm' : null;
+
+        case 'fetal_heart_tone':
+            return preg_match('/(\d{2,3})/', $v, $m) ? $m[1] . ' bpm' : null;
+
+        case 'aog_weeks':
+            return preg_match('/(\d{1,2})/', $v, $m) ? $m[1] . ' weeks' : null;
+
+        case 'temp_c':
+            return preg_match('/(\d{2}(?:\.\d)?)/', $v, $m) ? $m[1] . ' °C' : null;
+
+        case 'pulse_rate':
+        case 'resp_rate':
+        case 'living_children':
+            return preg_match('/(\d{1,3})/', $v, $m) ? $m[1] : null;
+
+        case 'lmp_date':
+        case 'edc_date':
+        case 'visit_date':
+        case 'next_visit_date':
+        case 'specimen_1_date':
+        case 'specimen_2_date':
+            return preg_match('/(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/', $v, $m)
+                ? sprintf('%04d-%02d-%02d', (int) $m[1], (int) $m[2], (int) $m[3])
+                : null;
+
+        case 'tetanus_toxoid':
+            if (preg_match('/TT\s*([1-5])/i', $v, $m)) {
+                return 'TT' . $m[1];
+            }
+            return preg_match('/\b(none|FIM)\b/i', $v, $m) ? strtoupper($m[1]) : null;
+
+        case 'dose_number':
+            if (preg_match('/(\d)\s*(st|nd|rd|th)\s*dose/i', $v, $m)) {
+                return $m[1] . strtolower($m[2]) . ' Dose';
+            }
+            if (preg_match('/booster\s*(\d)/i', $v, $m)) {
+                return 'Booster ' . $m[1];
+            }
+            return $v;
+
+        default:
+            // Generic: strip trailing separators and collapse whitespace
+            return trim($v, " \t\n\r\0\x0B.-|");
+    }
+}
+
+/**
+ * Map OCR text lines onto structured program fields using label aliases.
+ * Confidence per field is the mean confidence of the words on that OCR line,
+ * which is the real engine confidence rather than a fabricated score (BR-10).
+ *
+ * @param array<int, array{text: string, conf: float}> $lines
+ * @return array{fields: array<string, string>, scores: array<string, int>}
+ */
+function parseOcrFields(array $lines, string $programType): array
+{
+    $aliases = getOcrLabelAliases();
+
+    // Reverse lookup: normalised alias -> field key
+    $lookup = [];
+    foreach ($aliases as $fieldKey => $variants) {
+        foreach ($variants as $variant) {
+            $lookup[normaliseOcrLabel($variant)] = $fieldKey;
+        }
+    }
+    // Longest alias first so "birth weight" wins over "weight"
+    $aliasKeys = array_keys($lookup);
+    usort($aliasKeys, static fn (string $a, string $b): int => strlen($b) <=> strlen($a));
+
+    $schemas      = getProgramFormSchemas();
+    $schemaFields = $schemas[$programType]['fields'] ?? [];
+
+    // Canonical display labels for shared fields so OCR and the identity
+    // fallback cannot produce duplicate keys (e.g. "Upi" vs "UPI").
+    $labelOverrides = [
+        'upi'             => 'UPI',
+        'patient_name'    => 'Patient Name',
+        'visit_date'      => 'Visit Date',
+        'next_visit_date' => 'Next Visit Date',
+        'treatment_given' => 'Treatment Given',
+        'guardian_name'   => 'Guardian Name',
+    ];
+
+    $fields = [];
+    $scores = [];
+
+    foreach ($lines as $line) {
+        $text = trim((string) ($line['text'] ?? ''));
+        $conf = (float) ($line['conf'] ?? 0);
+        if ($text === '') {
+            continue;
+        }
+
+        $labelPart = null;
+        $valuePart = null;
+
+        if (str_contains($text, ':')) {
+            [$labelPart, $valuePart] = explode(':', $text, 2);
+        } else {
+            // No colon on the line: match a known alias at the start of the text,
+            // preserving the original value characters (slashes, dots, spaces).
+            foreach ($aliasKeys as $alias) {
+                $pattern = '/^' . str_replace(' ', '\s*', preg_quote($alias, '/')) . '\b[\s.\-|]*(.*)$/i';
+                if (preg_match($pattern, $text, $m)) {
+                    $labelPart = $alias;
+                    $valuePart = $m[1];
+                    break;
+                }
+            }
+        }
+
+        if ($labelPart === null || $valuePart === null) {
+            continue;
+        }
+
+        $normLabel = normaliseOcrLabel($labelPart);
+        $fieldKey  = $lookup[$normLabel] ?? null;
+
+        // Tolerate trailing noise in the label (e.g. "BP 2 :")
+        if ($fieldKey === null) {
+            foreach ($aliasKeys as $alias) {
+                if ($normLabel === $alias || str_starts_with($normLabel, $alias . ' ')) {
+                    $fieldKey = $lookup[$alias];
+                    break;
+                }
+            }
+        }
+        if ($fieldKey === null) {
+            continue;
+        }
+
+        $clean = cleanOcrFieldValue($fieldKey, (string) $valuePart);
+        if ($clean === null || $clean === '') {
+            continue;
+        }
+
+        $label = $labelOverrides[$fieldKey]
+            ?? ($schemaFields[$fieldKey]['label'] ?? ucwords(str_replace('_', ' ', $fieldKey)));
+        $fields[$label] = $clean;
+        $scores[$label] = (int) round(ocrValueConfidence($line, $conf));
+    }
+
+    return ['fields' => $fields, 'scores' => $scores];
+}
+
+/**
+ * Derive a field's confidence from the OCR words that actually carry its value,
+ * not from every token on the line. Without this, stray noise in the label area
+ * (for example the "2" Tesseract sometimes emits for a colon) would drag an
+ * otherwise clean reading below the review threshold.
+ *
+ * @param array{text?: string, conf?: float, words?: array<int, array{text: string, conf: float}>} $line
+ */
+function ocrValueConfidence(array $line, float $lineConf): float
+{
+    $words = $line['words'] ?? [];
+    if (empty($words)) {
+        return $lineConf;
+    }
+
+    // Skip label tokens: everything after the colon (or after the first word).
+    $colonAt = null;
+    foreach ($words as $i => $w) {
+        if (str_contains((string) $w['text'], ':')) {
+            $colonAt = $i;
+            break;
+        }
+    }
+
+    $valueWords = $colonAt !== null
+        ? array_slice($words, $colonAt + 1)
+        : array_slice($words, 1);
+
+    // Drop punctuation-only and single-character tokens (typical OCR noise)
+    $valueWords = array_values(array_filter($valueWords, static function (array $w): bool {
+        $t = (string) preg_replace('/[^0-9A-Za-z]/', '', (string) $w['text']);
+        return strlen($t) >= 2;
+    }));
+
+    if (empty($valueWords)) {
+        return $lineConf;
+    }
+
+    $confs = array_column($valueWords, 'conf');
+    return round(array_sum($confs) / count($confs), 1);
+}
+
+/**
+ * Fallback content used ONLY when Tesseract cannot run (FR-27). Every value is
+ * clearly marked as unverified template text so it can never be mistaken for
+ * something read off the scan.
+ *
+ * @return array{fields: array<string, string>, scores: array<string, int>, flagged: array<int, string>}
+ */
+function getOcrFallbackTemplate(
+    string $programType,
+    string $patientName,
+    string $patientCode,
+    string $visitDate
+): array {
+    $templates = [
+        'Maternal/Prenatal' => [
+            'LMP'                => '2026-03-10',
+            'EDC'                => '2026-12-15',
+            'G/P Score'          => 'G2 P1 (1-0-0-1)',
+            'AOG'                => '24 weeks',
+            'Blood Pressure'     => '110/70',
+            'Weight'             => '57.5 kg',
+            'Fundal Height'      => '23 cm',
+            'Fetal Heart Tone'   => '142 bpm',
+            'Tetanus Toxoid'     => 'TT2',
+        ],
+        'Family Planning' => [
+            'Client Type'        => 'Current User - Continuing',
+            'Method Accepted'    => 'Injectable (DMPA 3-Month)',
+            'Blood Pressure'     => '118/76',
+            'Weight'             => '53.0 kg',
+            'LMP'                => '2026-08-01',
+        ],
+        'Child Health-ECCD' => [
+            'Birth Weight'       => '3.1 kg',
+            'Current Weight'     => '11.2 kg',
+            'Current Height'     => '84.0 cm',
+            'WHZ'                => 'Normal (Median / 0 SD)',
+        ],
+        'Immunization' => [
+            'Vaccine'            => 'Pentavalent (DPT-HepB-Hib)',
+            'Dose'               => '2nd Dose',
+            'Route Site'         => 'IM - Left Vastus Lateralis (Thigh)',
+            'Weight'             => '6.4 kg',
+            'Temperature'        => '36.5 °C',
+            'Lot No'             => 'NIP-2026-PENTA02',
+        ],
+        'Laboratory Referral' => [
+            'Reason for Exam'    => 'Diagnosis',
+            'Treatment History'  => 'New',
+            'Specimen'           => 'Sputum (Spot & Early Morning)',
+            'Test Requested'     => 'Xpert MTB/RIF & DSSM',
+        ],
+        'General Consultation' => [
+            'Blood Pressure'     => '125/80',
+            'Temperature'        => '37.4 °C',
+            'Pulse Rate'         => '82',
+            'Resp Rate'          => '18',
+            'Weight'             => '61.0 kg',
+            'Chief Complaint'    => 'Cough and sore throat for 2 days',
+        ],
+    ];
+
+    $base = $templates[$programType] ?? $templates['General Consultation'];
+
+    $fields = [
+        'Patient Name' => $patientName,
+        'UPI'          => $patientCode,
+        'Visit Date'   => $visitDate,
+    ];
+    $scores = [
+        'Patient Name' => 100,
+        'UPI'          => 100,
+        'Visit Date'   => 100,
+    ];
+
+    // Template values carry no real confidence: mark them all as low so the
+    // reviewer is forced to confirm each one (BR-10).
+    foreach ($base as $label => $value) {
+        $fields[$label] = $value;
+        $scores[$label] = 0;
+    }
+
+    return ['fields' => $fields, 'scores' => $scores, 'flagged' => array_keys($base)];
+}
+
+/**
+ * Produce a Human-in-the-Loop OCR draft for one of the 6 clinic form types.
+ *
+ * When Tesseract is available and a raster scan is attached, the structured
+ * fields are genuinely read from the image and carry real per-line confidence
+ * from Tesseract's TSV output. When it cannot run, a clearly-labelled fallback
+ * template is produced and every value is flagged for manual verification
+ * (FR-25, FR-26, FR-27, BR-10).
+ *
+ * @return array{raw_output: string, flagged_fields: array<int, string>, confidence_scores: array<string, int>, mode: string}
  */
 function extractOcrDraftData(
     string $programType,
@@ -173,164 +743,104 @@ function extractOcrDraftData(
     string $optionalImagePath = '',
     string $customRawHint = ''
 ): array {
-    $tesseractText = '';
-    $engine        = getOcrEngineStatus();
+    $engine  = getOcrEngineStatus();
+    $lines   = [];
+    $rawText = '';
+    $mode    = 'fallback';
+    $note    = '';
 
-    if ($engine['available'] && $optionalImagePath !== '' && is_file($optionalImagePath)) {
-        $ext = strtolower(pathinfo($optionalImagePath, PATHINFO_EXTENSION));
-        if (in_array($ext, ['png', 'jpg', 'jpeg', 'webp'], true)) {
-            $cmd = escapeshellarg($engine['binary']) . ' ' . escapeshellarg($optionalImagePath) . ' stdout --psm 6 2>&1';
-            $out = @shell_exec($cmd);
-            if (is_string($out) && trim($out) !== '') {
-                $tesseractText = trim($out);
+    if (!$engine['available']) {
+        $note = (string) $engine['version'];
+    } elseif ($optionalImagePath === '') {
+        $note = 'No raster scan attached to this document';
+    } else {
+        $ocr = runTesseractOnImage($optionalImagePath, $engine['binary']);
+        if ($ocr['ok']) {
+            $lines   = $ocr['lines'];
+            $rawText = $ocr['text'];
+            $mode    = 'tesseract';
+        } else {
+            $note = $ocr['error'];
+        }
+    }
+
+    if ($mode === 'tesseract') {
+        $parsed = parseOcrFields($lines, $programType);
+        $fields = $parsed['fields'];
+        $scores = $parsed['scores'];
+
+        // Identity fields come from the verified patient record when the scan
+        // did not yield them; they are not OCR-derived so they score 100.
+        $identity = [
+            'Patient Name' => $patientName,
+            'UPI'          => $patientCode,
+            'Visit Date'   => $visitDate,
+        ];
+        foreach ($identity as $label => $value) {
+            if (!isset($fields[$label]) && $value !== '') {
+                $fields[$label] = $value;
+                $scores[$label] = 100;
             }
         }
-    }
 
-    $templates = [
-        'Maternal/Prenatal' => [
-            'lines' => [
-                "FORM: DOH HBMR / LOCAL HEALTH UNIT MATERNAL RECORD FORM",
-                "PATIENT: {$patientName} ({$patientCode}) | VISIT DATE: {$visitDate}",
-                "LMP: 2026-03-10 | EDC: 2026-12-15 | G/P: G2 P1 (1-0-0-1)",
-                "AOG: 24 weeks | BP: 110/70 mmHg | WEIGHT: 57.5 kg",
-                "FUNDAL HEIGHT: 23 cm | FHT: 142 bpm | TETANUS TOXOID: TT2",
-                "FINDINGS: Normal prenatal progress; mild ankle edema noted (handwritten margin).",
-                "TREATMENT GIVEN: Ferrous Sulfate + Folic Acid 30 tabs; counseled on 4 danger signs.",
-                "NEXT VISIT DATE: " . date('Y-m-d', strtotime($visitDate . ' +28 days')),
-            ],
-            'scores' => [
-                'upi'             => 98,
-                'service_date'    => 95,
-                'lmp_edc'         => 89,
-                'bp'              => 92,
-                'weight_kg'       => 86,
-                'fundal_height'   => 68,
-                'fetal_heart_tone'=> 71,
-                'treatment_given' => 88,
-            ],
-        ],
-        'Family Planning' => [
-            'lines' => [
-                "FORM: DOH FAMILY PLANNING (FP) FORM 1 (ver. 3.0) - SIDE A & B",
-                "CLIENT: {$patientName} ({$patientCode}) | DATE OF VISIT: {$visitDate}",
-                "CLIENT TYPE: Current User - Continuing | METHOD ACCEPTED: Injectable (DMPA 3-Month)",
-                "BP: 118/76 mmHg | WEIGHT: 53.0 kg | LMP: 2026-08-01",
-                "MEDICAL FINDINGS: Passed 6-point Side B pregnancy screening checklist; no STI/VAW risks.",
-                "TREATMENT GIVEN: Administered 1 vial DMPA IM; counseled on return schedule.",
-                "DATE OF FOLLOW-UP VISIT: " . date('Y-m-d', strtotime($visitDate . ' +90 days')),
-            ],
-            'scores' => [
-                'upi'             => 97,
-                'service_date'    => 94,
-                'client_type'     => 90,
-                'method_accepted' => 72,
-                'bp'              => 91,
-                'weight_kg'       => 69,
-                'next_visit_date' => 87,
-            ],
-        ],
-        'Child Health-ECCD' => [
-            'lines' => [
-                "FORM: EARLY CHILDHOOD CARE AND DEVELOPMENT (ECCD) CARD",
-                "CHILD: {$patientName} ({$patientCode}) | VISIT DATE: {$visitDate}",
-                "BIRTH WEIGHT: 3.1 kg | CURRENT WEIGHT: 11.2 kg | CURRENT HEIGHT: 84.0 cm",
-                "WHO WEIGHT-FOR-HEIGHT Z-SCORE: Normal (Median / 0 SD)",
-                "FINDINGS: Active child, age-appropriate gross motor milestones; appetite good.",
-                "TREATMENT GIVEN: Vitamin A 200,000 IU capsule + Albendazole 400mg deworming.",
-                "NEXT VISIT DATE: " . date('Y-m-d', strtotime($visitDate . ' +180 days')),
-            ],
-            'scores' => [
-                'upi'             => 96,
-                'service_date'    => 93,
-                'current_weight'  => 70,
-                'current_height'  => 66,
-                'whz_status'      => 85,
-                'treatment_given' => 91,
-            ],
-        ],
-        'Immunization' => [
-            'lines' => [
-                "FORM: ECCD ESSENTIAL HEALTH AND NUTRITION SERVICES (IMMUNIZATION)",
-                "CHILD: {$patientName} ({$patientCode}) | DATE ADMINISTERED: {$visitDate}",
-                "VACCINE: Pentavalent (DPT-HepB-Hib) | DOSE: 2nd Dose | SITE: IM Left Thigh",
-                "WEIGHT: 6.4 kg | TEMP: 36.5 C | LOT NO: NIP-2026-PENTA02",
-                "FINDINGS: Fit for vaccination; no AEFI observed 15 mins post-injection.",
-                "TREATMENT GIVEN: Pentavalent 2nd dose + Paracetamol drops for potential mild fever.",
-                "NEXT VISIT DATE: " . date('Y-m-d', strtotime($visitDate . ' +28 days')),
-            ],
-            'scores' => [
-                'upi'            => 98,
-                'service_date'   => 92,
-                'vaccine_name'   => 89,
-                'dose_number'    => 73,
-                'vaccine_lot_no' => 64,
-                'weight_kg'      => 88,
-            ],
-        ],
-        'Laboratory Referral' => [
-            'lines' => [
-                "FORM: DOH NTP FORM 2a - LABORATORY REQUEST AND RESULT FORM",
-                "PATIENT: {$patientName} ({$patientCode}) | DATE OF REQUEST: {$visitDate}",
-                "REASON FOR EXAM: Diagnosis | HISTORY OF TREATMENT: New | SPECIMEN: Sputum",
-                "TEST REQUESTED: Xpert MTB/RIF & DSSM | COLLECTION FACILITY: Barangay Tubtubon BHS",
-                "FINDINGS: Productive cough >2 weeks; Specimen 1 & 2 collected and endorsed to Sibulan RHU.",
-                "TREATMENT GIVEN: Sputum cups issued and transported to RHU Microscopy Center.",
-                "NEXT VISIT DATE: " . date('Y-m-d', strtotime($visitDate . ' +5 days')),
-            ],
-            'scores' => [
-                'upi'                => 97,
-                'service_date'       => 95,
-                'exam_reason'        => 91,
-                'test_requested'     => 88,
-                'specimen_1_date'    => 69,
-                'lab_result_summary' => 62,
-            ],
-        ],
-        'General Consultation' => [
-            'lines' => [
-                "FORM: BARANGAY TUBTUBON HEALTH CENTER - CLINICAL CONSULTATION SLIP",
-                "PATIENT: {$patientName} ({$patientCode}) | VISIT DATE: {$visitDate}",
-                "VITALS: BP 125/80 mmHg | TEMP 37.4 C | PR 82 bpm | RR 18 cpm | WT 61.0 kg",
-                "CHIEF COMPLAINT: Non-productive cough, sore throat, and mild body malaise for 2 days.",
-                "FINDINGS / IMPRESSION: Acute Upper Respiratory Tract Infection (URTI); lungs clear.",
-                "TREATMENT GIVEN: Paracetamol 500mg + Vitamin C; increased oral fluids advised.",
-                "NEXT VISIT DATE: " . date('Y-m-d', strtotime($visitDate . ' +7 days')),
-            ],
-            'scores' => [
-                'upi'                  => 96,
-                'service_date'         => 94,
-                'bp'                   => 89,
-                'temp_c'               => 74,
-                'diagnosis_impression' => 67,
-                'treatment_given'      => 85,
-            ],
-        ],
-    ];
-
-    $selected = $templates[$programType] ?? $templates['General Consultation'];
-    $rawLines = $selected['lines'];
-
-    if ($tesseractText !== '') {
-        $rawLines[] = "--- RAW TESSERACT OCR STREAM ---";
-        $rawLines[] = $tesseractText;
-    }
-    if (trim($customRawHint) !== '') {
-        $rawLines[] = "STAFF SCAN NOTES: " . trim($customRawHint);
-    }
-
-    $scores  = $selected['scores'];
-    $flagged = [];
-    foreach ($scores as $field => $score) {
-        if ($score < OCR_LOW_CONFIDENCE_THRESHOLD) {
-            $flagged[] = $field;
+        // Cross-validate the scanned UPI against the Master Patient Index: an exact
+        // match is a stronger guarantee than the engine's own token confidence.
+        if (isset($fields['UPI'], $scores['UPI'])
+            && $patientCode !== ''
+            && strcasecmp($fields['UPI'], $patientCode) === 0) {
+            $scores['UPI'] = 100;
         }
+
+        $flagged = [];
+        foreach ($scores as $label => $score) {
+            if ($score < OCR_LOW_CONFIDENCE_THRESHOLD) {
+                $flagged[] = $label;
+            }
+        }
+
+        $avgConf = round(array_sum(array_column($lines, 'conf')) / max(1, count($lines)), 1);
+
+        $out   = [];
+        $out[] = '[OCR ENGINE: ' . $engine['version'] . ' | MODE: REAL EXTRACTION FROM SCAN | AVG CONFIDENCE: ' . $avgConf . '%]';
+
+        if (empty($fields)) {
+            $out[] = '(No structured fields could be matched on this scan — please encode manually per FR-27.)';
+        } else {
+            foreach ($fields as $label => $value) {
+                $out[] = $label . ': ' . $value;
+            }
+        }
+    } else {
+        $tpl    = getOcrFallbackTemplate($programType, $patientName, $patientCode, $visitDate);
+        $fields = $tpl['fields'];
+        $scores = $tpl['scores'];
+        $flagged = $tpl['flagged'];
+
+        $out   = [];
+        $out[] = '[OCR MODE: FALLBACK TEMPLATE — Tesseract was not used: ' . $note . ']';
+        $out[] = '[BR-10 WARNING: The values below were NOT read from the scan. Verify every field manually or use manual encoding (FR-27).]';
+        foreach ($fields as $label => $value) {
+            $out[] = $label . ': ' . $value;
+        }
+    }
+
+    if (trim($customRawHint) !== '') {
+        $out[] = 'Staff Scan Notes: ' . trim($customRawHint);
+    }
+
+    // Raw engine text is kept as verification evidence for the reviewer only.
+    // processOcrDraftDecision() strips everything from this marker onward before
+    // committing to D4, so evidence never pollutes the clinical record.
+    $rawSection = '';
+    if ($rawText !== '') {
+        $rawSection = "\n" . OCR_RAW_TEXT_MARKER . "\n" . $rawText;
     }
 
     return [
-        'raw_output'        => implode("\n", $rawLines),
-        'flagged_fields'    => $flagged,
+        'raw_output'        => implode("\n", $out) . $rawSection,
+        'flagged_fields'    => array_values($flagged),
         'confidence_scores' => $scores,
+        'mode'              => $mode,
     ];
 }
 
@@ -541,6 +1051,13 @@ function processOcrDraftDecision(
 
     $visitDate      = trim((string)($correctedData['visit_date'] ?? date('Y-m-d')));
     $editedFindings = trim((string)($correctedData['ocr_raw_output'] ?? $draft['ocr_raw_output']));
+
+    // BR-10: the raw engine text is verification evidence only. Strip it so the
+    // committed clinical record contains solely the human-verified field values.
+    $markerPos = strpos($editedFindings, OCR_RAW_TEXT_MARKER);
+    if ($markerPos !== false) {
+        $editedFindings = trim(substr($editedFindings, 0, $markerPos));
+    }
     $treatmentGiven = trim((string)($correctedData['treatment_given'] ?? ''));
     $nextVisitDate  = trim((string)($correctedData['next_visit_date'] ?? ''));
     $programType    = trim((string)($correctedData['program_type'] ?? $draft['program_type']));
