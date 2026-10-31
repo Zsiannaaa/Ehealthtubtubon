@@ -1,0 +1,4 @@
+# Shell scripts and Apache configs must keep LF endings.
+# A CRLF shebang makes Linux fail with: /bin/bash^M: bad interpreter
+*.sh    text eol=lf
+*.conf  text eol=lf
